@@ -2,7 +2,7 @@
 // CSC2025 Assembler Project
 // date: 8/29/25
 // i/o files: part1CR.asm
-// description: I have finished the splitCommand function, renamed some variables, and made one helper function
+// description: Reads an assembly file and generates machine code then executes that machine code on a virtual machine
 // to read just one part of a line
 
 #define _CRT_SECURE_NO_WARNINGS  // lets us use deprecated code
@@ -46,22 +46,22 @@ struct Registers
 }regis;
 
 //GLOBAL VARIABLES
-typedef short int Memory;  //sets the type of memory to short int 
-Memory memory[MAX] = { 0 };   //global variable the memory of the virtual machine
-Memory address;     //global variable the current address in the virtual machine
+typedef short int Memory;  // sets the type of memory to short int
+Memory memory[MAX] = { 0 };   // global variable the memory of the virtual machine
+Memory address;     // global variable the current address in the virtual machine
 
 //function prototypes
 void runMachineCode( );	// Executes the machine code	****NEEDS WORK***
-void splitCommand( char line[ ], char part1[ ], char part2[ ], char part3[ ] );	// splits line of asm into it's three parts	****NEEDS WORK***
+void splitCommand( char line[ ], char instruction[ ], char operand1[ ], char operand2[ ] );
 void convertToMachineCode( FILE *fin );	// Converts a single line of ASM to machine code	***NEEDS WORK***
 void assembler( );			// Converts the entire ASM file and stores it in memory
-void printMemoryDump( );	// Prints memeory with commands represented as integes
+void printMemoryDump( );	// Prints memory with commands represented as integers
 
 // Helper functions prototypes
 int convertToNumber( char line[ ], int start );	// converts a sub-string to an int
-int whichOperand( char operand[]);			// Returns the number of the letter registar
+int whichOperand( char operand[]);			// Returns the number of the letter register
 void changeToLowerCase( char line[ ] );	// Changes each character to lower case
-void printMemoryDumpHex( );				// Prints memory in hexedecimal
+void printMemoryDumpHex( );				// Prints memory in hexadecimal
 void putValue( int operand, int value );
 Memory getValue( Memory operand );
 void readInstructionPart(char line[], char part[], int *index);
@@ -87,7 +87,7 @@ void assembler( )
 {
 	address = 0;
 	FILE* fin;		// File pointer for reading in the assembly code.
-	//recommend changeing so you can type in file name
+	//recommend changing so you can type in file name
 	fin = fopen(ASM_FILE_NAME, "r" );
 	if ( fin == NULL )
 	{
@@ -109,7 +109,7 @@ Needs work, comment must be corrected
 void convertToMachineCode( FILE *fin )
 {
 	char line[LINE_SIZE];		// full command
-	char part1[LINE_SIZE];	// the asm commmand
+	char part1[LINE_SIZE];	// the asm command
 	char part2[ LINE_SIZE ] = "";// the two operands, could be empty
 	char part3[ LINE_SIZE ] = "";	
 	int machineCode = 0;			// One line of converted asm code from the file
@@ -155,15 +155,6 @@ void splitCommand( char line[ ], char instruction[ ], char operand1[ ], char ope
 	}
 	else
 	{
-		//checks to make sure it is logical to proceed.
-		//once code is working this code should never be reached.
-		if ( lineIndex < 1 || lineIndex > 3 )
-		{
-			printf( "Invalid instruction: %s\n", instruction);
-			system( "pause" );  //stops the code from running until enter is pushed
-			exit( 1 );	// This is temporary. You must find a way to deal with index out of bounds.
-		}
-
 		lineIndex++; // step over the space
 
 		readInstructionPart(line, operand1, &lineIndex);
@@ -221,13 +212,13 @@ reads and returns the next "word" of an instruction (command or operands)
 
 line is the line containing the instruction to read from
 part is a char[] that will contain the word after the function is called
-index is a pointer to the current location we are reading from on the line as an int
+lineIndex is a pointer to the current location we are reading from on the line as an int
 it is an int* because we will increment it until we hit a space or end of line.
 ---------------------------------------------------------------------------------*/
 
 void readInstructionPart(char line[], char part[], int *lineIndex)
 {
-	int partIndex = 0; // the index to write to when adding to part
+	int partIndex = 0; // the index in the part array where the current character is being written
 
 					// copy until we hit a space or end of line/string
 	while (line[*lineIndex] != ' ' && line[*lineIndex] != '\0' && line[*lineIndex] != '\n')
@@ -391,3 +382,7 @@ void changeToLowerCase( char line[ ] )
 		index++;
 	}
 }
+
+/* Problems:
+> Part 1: None
+*/
