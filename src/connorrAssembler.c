@@ -143,7 +143,8 @@ void convertToMachineCode( FILE *fin )
 		address++;
 	}
 
-	if (requires_16_bit_field) { // we need to record the 16 bits after this command
+	if (requires_16_bit_field)
+	{ // we need to record the 16 bits after this command
 			// convert part3 to a number and store it in the next memory slot
 		memory[address] = (Memory) convertToNumber(part3, 0);
 		address += 1;
@@ -214,10 +215,12 @@ void runMachineCode( )
 		if ( part1 == MOVREG )
 		{
 			Memory value = 0; // the value to put into the target register
-			if (part3 == CONSTANT) {
+			if (part3 == CONSTANT)
+			{
 				value = memory[address]; // fetch memory
 				address ++; // step over memory
-			} else {
+			} else
+			{
 				value = readRegister(part3);
 			}
 			int target_register = part2 >> 3;
@@ -333,8 +336,10 @@ void printMemoryDumpHex( )
  *
  * This function will fatally error if you pass in a nonexistent register
  */
-Memory readRegister(int reg) {
-	switch ( reg ) { // read the value of either the register or constant specified
+Memory readRegister(int reg)
+ {
+	switch ( reg )
+	{ // read the value of either the register or constant specified
 		case AXREG:
 			return (Memory) regis.AX;
 		case BXREG:
@@ -355,8 +360,11 @@ Memory readRegister(int reg) {
  * reg is the binary value of the register you want to target, 000 for AX, 001 for BX etc.
  * This function will give a fatal error if you pass in a bad register
  */
-void writeRegister(int reg, Memory value) {
-	switch (reg) { // move value into the proper register
+void writeRegister(int reg, Memory value)
+{
+	// move value into the proper register
+	switch (reg)
+	{
 		case AXREG:
 			regis.AX = value;
 			break;
