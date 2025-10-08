@@ -1,9 +1,9 @@
 // name: Connor Reed
 // CSC2025 Assembler Project
-// date: 9/12/25
-// i/o files: part2CR.asm
+// date: 9/19/25
+// i/o files: part3CR.asm
 // description: Reads an assembly file and generates machine code then executes that machine code on a virtual machine
-// currently implemented: Mov with registers and constants, halt
+// currently implemented: Mov with registers and constants, halt, add, put
 
 #define _CRT_SECURE_NO_WARNINGS  // lets us use deprecated code
 
@@ -12,7 +12,7 @@
 #include <string.h>
 #include <ctype.h>
 
-char ASM_FILE_NAME[ ] = "part2CR.asm";
+char ASM_FILE_NAME[ ] = "part3CR.asm";
 
 #define MAX 150			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output
@@ -28,6 +28,8 @@ char ASM_FILE_NAME[ ] = "part2CR.asm";
 //commands
 #define HALT 5
 #define MOVREG 192
+#define ADD 160
+#define PUT 7 // outputs ax
 
 //boolean
 #define TRUE 1
@@ -48,12 +50,12 @@ struct Registers
 //GLOBAL VARIABLES
 typedef short int Memory;  // sets the type of memory to short int
 Memory memory[MAX] = { 0 };   // global variable the memory of the virtual machine
-Memory address;     // global variable the current addres s in the virtual machine
+Memory address;     // global variable the current address in the virtual machine
 
 //function prototypes
-void runMachineCode( );	// Executes the machine code	****NEEDS WORK***
-void splitCommand( char line[ ], char instruction[ ], char operand1[ ], char operand2[ ] );
-void convertToMachineCode( FILE *fin );	// Converts a single line of ASM to machine code	***NEEDS WORK***
+void runMachineCode( );	// Executes the machine code
+void splitCommand( char line[ ], char instruction[ ], char operand1[ ], char operand2[ ] ); // splits a command into its parts
+void convertToMachineCode( FILE *fin );	// Converts a single line of ASM to machine code
 void assembler( );			// Converts the entire ASM file and stores it in memory
 void printMemoryDump( );	// Prints memory with commands represented as integers
 
@@ -62,15 +64,22 @@ int convertToNumber( char line[ ], int start );	// converts a sub-string to an i
 int whichOpperand( char operand[]);			// Returns the number of the letter register
 void changeToLowerCase( char line[ ] );	// Changes each character to lower case
 void printMemoryDumpHex( );				// Prints memory in hexadecimal
-void putValue( int operand, int value );
-Memory getValue( Memory operand );
-void readInstructionPart(char line[], char part[], int *index);
-Memory readRegister(int reg);
-void writeRegister(int reg, Memory value);
+void putValue( int reg, Memory value ); // puts a value into a register
+Memory getValue( int operand ); // gets a value from a register or constant at address
+void readInstructionPart(char line[], char part[], int *index); // reads the next part of a line of assembly
 int main( )
 {
 	assembler( );
+	printf("=================================================\n");
+	printf("Memory after program is converted to machine code\n");
+	printf("=================================================\n");
+	printMemoryDumpHex();
 	runMachineCode( );
+
+	printf("================================\n");
+	printf("Memory after program is finished\n");
+	printf("================================\n");
+
 	printMemoryDumpHex( );  //displays memory with final values
 	
 	printf( "\n" );
@@ -105,10 +114,11 @@ void assembler( )
 /********************   convertToMachineCode   ***********************
 Converts a single line of ASM to machine code
 
-Needs work, comment must be corrected
+fin - file pointer to read from and converts it to machine code line by line writing to memory.
+
+Return Value - void
 ---------------------------------------------------------------------*/
-void convertToMachineCode( FILE *fin )
-{
+void convertToMachineCode( FILE *fin ) {
 	char line[LINE_SIZE];		// full command
 	char part1[LINE_SIZE];	// the asm command
 	char part2[ LINE_SIZE ] = "";// the two operands, could be empty
@@ -116,11 +126,14 @@ void convertToMachineCode( FILE *fin )
 	Memory machineCode = 0;			// One line of converted asm code from the file
 
 	fgets( line, LINE_SIZE, fin );		// Takes one line from the asm file
+
+	printf("Processing:\n%s\n", line);
+
 	changeToLowerCase( line );
 	
 	splitCommand( line, part1, part2, part3 );
 
-		// determines whether it will read in a value to put in the 16 bit slot
+	// determines whether it will read in a value to put in the 16 bit slot
 	int requires_16_bit_field = 0; // 1 if 16 bits are required at end of command for a constant or memory address
 	if ( part1[0] == 'h' )  //halt
 	{
@@ -129,18 +142,33 @@ void convertToMachineCode( FILE *fin )
 	}
 	else if ( part1[0] == 'm' )  //move into a register
 	{
-			// 3 bits for op, 2 bits for reg1, 3 bits for reg2 or constant
+		// 3 bits for op, 2 bits for reg1, 3 bits for reg2 or constant
 
-			// operand 1 is not the command but the first operand to follow it
+		// operand 1 is not the command but the first operand to follow it
 		int operand1 = whichOpperand(part2); // the first operant of the line
 		int operand2 = whichOpperand(part3); // the second operand of the line
-		machineCode=192;
+		machineCode = MOVREG;
 		machineCode = machineCode | operand1 << 3; // bit shifts 3 to the left and adds it to machine code
 		machineCode = machineCode | operand2;
 		memory[address] = machineCode;
 
 		requires_16_bit_field = operand2 == CONSTANT; // we need the 16 bit field if we have a constant
 		address++;
+	} else if (part1[0] == 'a')
+	{
+		int operand1 = whichOpperand(part2); // reg
+		int operand2 = whichOpperand(part3); // reg or const
+		machineCode = ADD;
+
+		machineCode |= operand1 << 3; // put in target register
+		machineCode |= operand2; // put in reg or const to add
+		memory[address] = machineCode;
+
+		requires_16_bit_field = operand2 == CONSTANT; // we need a 16 bit field if we are adding a constant
+		address++; // increment address
+	} else if (part1[0] == 'p') {
+		memory[address] = PUT;
+		address ++; // increment address
 	}
 
 	if (requires_16_bit_field)
@@ -159,7 +187,12 @@ void convertToMachineCode( FILE *fin )
 /********************   splitCommand   ***********************
 splits a line of asm into it's parts
 
-Needs work, comment must be corrected
+Line - the line to split
+instruction - a pointer to the string where the instruction part of the line will end up
+operand1 - a pointer to the string where the first operand in the line will end up
+operand2 - a pointer to the string where the second operand in the line will end up
+
+Return Value - void
 -----------------------------------------------------------*/
 void splitCommand( char line[ ], char instruction[ ], char operand1[ ], char operand2[ ] )
 {
@@ -192,8 +225,8 @@ void splitCommand( char line[ ], char instruction[ ], char operand1[ ], char ope
 
 /********************   runMachineCode   ***********************
 Executes the machine code that is in memory, the virtual machine
-
-Needs to be written
+Parameters: none
+Return Value: none
 -----------------------------------------------------------*/
 void runMachineCode( )
 {
@@ -221,12 +254,22 @@ void runMachineCode( )
 				address ++; // step over memory
 			} else
 			{
-				value = readRegister(part3);
+				value = getValue(part3);
 			}
 			int target_register = part2 >> 3;
-			writeRegister(target_register, value);
+			putValue(target_register, value);
+		} else if (part1 == ADD)
+		{
+				// the sum of the reg and reg/const to be moved into part2
+			int target_register = part2 >> 3;
+			Memory sum = getValue(target_register) + getValue(part3); // sum of two operands
+
+			putValue(target_register, sum); // write to target register
+		} else if (part3 == PUT) { // PUT command is in the last 3 bits
+			printf("		REG AX: %d\n", regis.AX);
 		}
-		fullCommand = memory[ address ];  //the next command
+
+ 		fullCommand = memory[ address ];  //the next command
 		address ++; // next command
 		//debugging, comment out when you don't need it
 		// printMemoryDumpHex( );
@@ -237,13 +280,77 @@ void runMachineCode( )
 /****************************   HELPER FUNCTIONS   *******************************
 /*********************************************************************************/
 
+/*
+ * Gets a value based on a binary code for a register or constant
+ *
+ * operand - the value of an operand, binary for a constant or register
+ * Return Value - the value of the register or the value of the current memory address for constant
+ *
+ * Note: if this function gets a constant, it increments address to step over the value
+ */
+Memory getValue(int operand)
+{
+	switch ( operand )
+	{ // read the value of either the register or constant specified
+		case AXREG:
+			return (Memory) regis.AX;
+		case BXREG:
+			return (Memory) regis.BX;
+		case CXREG:
+			return (Memory) regis.CX;
+		case DXREG:
+			return (Memory) regis.DX;
+		case CONSTANT:
+			address++;
+			return memory[address - 1];
+		default: // nonexistent register
+			printf("Unknown register: %d", reg);
+			system("pause");
+			exit(1);
+	}
+}
+
+/*
+ * Puts a value into a register
+ *
+ * reg - the binary code of the register who's value we will set
+ * value - the value to put into reg
+ *
+ * Return Value - void
+ */
+void putValue(int reg, Memory value)
+{
+	// move value into the proper register
+	switch (reg)
+	{
+		case AXREG:
+			regis.AX = value;
+			break;
+		case BXREG:
+			regis.BX = value;
+			break;
+		case CXREG:
+			regis.CX = value;
+			break;
+		case DXREG:
+			regis.DX = value;
+			break;
+		default: // if the machine code tells it to put it into a non-existent register
+			printf("Error, register %d not recognized", reg);
+			system("pause");
+			exit(1);
+	}
+}
+
 /***************************  readInstructionPart  *******************************
 reads and returns the next "word" of an instruction (command or operands)
 
-line is the line containing the instruction to read from
-part is a char[] that will contain the word after the function is called
-lineIndex is a pointer to the current location we are reading from on the line as an int
+line - the line containing the instruction to read from
+part - a char[] that will contain the word after the function is called
+lineIndex - a pointer to the current location we are reading from on the line as an int
 it is an int* because we will increment it until we hit a space or end of line.
+
+Return Value - void
 ---------------------------------------------------------------------------------*/
 
 void readInstructionPart(char line[], char part[], int *lineIndex)
@@ -330,64 +437,10 @@ void printMemoryDumpHex( )
 /*********** helper function for converting to machine code ******************/
 /*****************************************************************************/
 
-/*
- * Reads the register with bit value of reg ex: reg=000 for AX
- * You pass in the register and it returns the value stored there as Memory
- *
- * This function will fatally error if you pass in a nonexistent register
- */
-Memory readRegister(int reg)
- {
-	switch ( reg )
-	{ // read the value of either the register or constant specified
-		case AXREG:
-			return (Memory) regis.AX;
-		case BXREG:
-			return (Memory) regis.BX;
-		case CXREG:
-			return (Memory) regis.CX;
-		case DXREG:
-			return (Memory) regis.DX;
-		default: // nonexistent register
-			printf("Unknown register: %d", reg);
-			system("pause");
-			exit(1);
-	}
-}
-
-/*
- * Writes a value of type Memory into the register specified by reg
- * reg is the binary value of the register you want to target, 000 for AX, 001 for BX etc.
- * This function will give a fatal error if you pass in a bad register
- */
-void writeRegister(int reg, Memory value)
-{
-	// move value into the proper register
-	switch (reg)
-	{
-		case AXREG:
-			regis.AX = value;
-			break;
-		case BXREG:
-			regis.BX = value;
-			break;
-		case CXREG:
-			regis.CX = value;
-			break;
-		case DXREG:
-			regis.DX = value;
-			break;
-		default: // if the machine code tells it to put it into a non-existent register
-			printf("Error, register %d not recognized", reg);
-			system("pause");
-			exit(1);
-	}
-}
-
 /*********************   whichOpperand   ***************************
 /* changes the letter of the register to a number parameters:
 /* letter - the first letter of the operand, register, number, [
-/* return value - the number of the register
+/* Return Value - the number of the register
 /*--------------------------------------------------------------*/
 int whichOpperand( char operand[LINE_SIZE] )
 {
@@ -468,7 +521,5 @@ void changeToLowerCase( char line[ ] )
 }
 
 /* Problems:
-> Part 1: None
-> Part 1: I had to do some debugging when abstracting the reading and
-writing of registers into their own functions, I have it figured out now.
+> Part 3: None
 */
