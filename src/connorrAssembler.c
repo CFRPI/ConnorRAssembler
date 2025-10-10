@@ -1,9 +1,9 @@
 // name: Connor Reed
 // CSC2025 Assembler Project
-// date: 9/19/25
-// i/o files: part3CR.asm
+// date: 10/10/25
+// i/o files: part4CR.asm
 // description: Reads an assembly file and generates machine code then executes that machine code on a virtual machine
-// currently implemented: Mov with registers and constants, halt, add, put
+// currently implemented: Mov with registers, constants, and memory, halt, add, put
 
 #define _CRT_SECURE_NO_WARNINGS  // lets us use deprecated code
 
@@ -12,7 +12,7 @@
 #include <string.h>
 #include <ctype.h>
 
-char ASM_FILE_NAME[ ] = "part3CR.asm";
+char ASM_FILE_NAME[ ] = "part4CR.asm";
 
 #define MAX 150			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output
@@ -24,10 +24,12 @@ char ASM_FILE_NAME[ ] = "part3CR.asm";
 #define CXREG 2
 #define DXREG 3
 #define CONSTANT 7
+#define ADDRESS 6
 
 //commands
 #define HALT 5
 #define MOVREG 192
+#define MOVMEM 224
 #define ADD 160
 #define PUT 7 // outputs ax
 
@@ -135,24 +137,36 @@ void convertToMachineCode( FILE *fin ) {
 
 	// determines whether it will read in a value to put in the 16 bit slot
 	int requires_16_bit_field = 0; // 1 if 16 bits are required at end of command for a constant or memory address
+
 	if ( part1[0] == 'h' )  //halt
 	{
 		memory[address] = HALT;
 		address++;
 	}
-	else if ( part1[0] == 'm' )  //move into a register
+	else if ( part1[0] == 'm' )  //move into a register or memory location
 	{
 		// 3 bits for op, 2 bits for reg1, 3 bits for reg2 or constant
 
+		if (part2[0] == '[') { // movmem
+			machineCode = MOVMEM;
+			char temp[LINE_SIZE]; // swap part 2 and 3
+			strcpy(temp, part2);
+			strcpy(part2, part3);
+			strcpy(part3, temp);
+		} else { // movreg
+			machineCode = MOVREG;
+		}
+
 		// operand 1 is not the command but the first operand to follow it
-		int operand1 = whichOpperand(part2); // the first operant of the line
+		int operand1 = whichOpperand(part2); // the first operand of the line
 		int operand2 = whichOpperand(part3); // the second operand of the line
-		machineCode = MOVREG;
+
 		machineCode = machineCode | operand1 << 3; // bit shifts 3 to the left and adds it to machine code
 		machineCode = machineCode | operand2;
+
 		memory[address] = machineCode;
 
-		requires_16_bit_field = operand2 == CONSTANT; // we need the 16 bit field if we have a constant
+		requires_16_bit_field = operand2 == CONSTANT || operand2 == ADDRESS; // we need the 16 bit field if we have a constant
 		address++;
 	} else if (part1[0] == 'a')
 	{
@@ -164,11 +178,20 @@ void convertToMachineCode( FILE *fin ) {
 		machineCode |= operand2; // put in reg or const to add
 		memory[address] = machineCode;
 
-		requires_16_bit_field = operand2 == CONSTANT; // we need a 16 bit field if we are adding a constant
+		requires_16_bit_field = operand2 == CONSTANT || operand2 == ADDRESS; // we need a 16 bit field if we are adding a constant
 		address++; // increment address
-	} else if (part1[0] == 'p') {
+	} else if (part1[0] == 'p')
+	{
 		memory[address] = PUT;
 		address ++; // increment address
+	} else if (line[0] == '\n')
+	{
+		memory[address] == 0;
+		address++;
+	} else if (isdigit(part1[0]))
+	{ // assume it is a number if it is not a command
+		memory[address] = convertToNumber(part1, 0);
+		address++;
 	}
 
 	if (requires_16_bit_field)
@@ -234,8 +257,7 @@ void runMachineCode( )
 	Memory mask2 = 24;    //000 11 000
 	Memory mask3 = 7;	  //000 00 111
 	Memory part1, part2, part3; //command, operand1, 
-	int value1, value2;   //the actual values in the registers or constants
-	
+
 	address = 0;
 	Memory fullCommand = memory[ address ];
 	address++;
@@ -245,25 +267,20 @@ void runMachineCode( )
 		part1 = fullCommand & mask1;
 		part2 = fullCommand & mask2;
 		part3 = fullCommand & mask3;
-		if ( part1 == MOVREG )
+		if ( part1 == MOVREG)
 		{
-			Memory value = 0; // the value to put into the target register
-			if (part3 == CONSTANT)
-			{
-				value = memory[address]; // fetch memory
-				address ++; // step over memory
-			} else
-			{
-				value = getValue(part3);
-			}
-			int target_register = part2 >> 3;
-			putValue(target_register, value);
+			Memory value = getValue(part3);
+			int target = part2 >> 3;
+			putValue(target, value);
+		} else if (part1 == MOVMEM) {
+			Memory value = getValue(part2 >> 3);
+			int target = part3;
+			putValue(target, value);
 		} else if (part1 == ADD)
 		{
 				// the sum of the reg and reg/const to be moved into part2
 			int target_register = part2 >> 3;
 			Memory sum = getValue(target_register) + getValue(part3); // sum of two operands
-
 			putValue(target_register, sum); // write to target register
 		} else if (part3 == PUT) { // PUT command is in the last 3 bits
 			printf("		REG AX: %d\n", regis.AX);
@@ -300,6 +317,10 @@ Memory getValue(int operand)
 			return (Memory) regis.CX;
 		case DXREG:
 			return (Memory) regis.DX;
+		case ADDRESS:
+			address++; // step over the value to retrieve
+			Memory ptr = memory[address - 1]; // the pointer to the memory address to retrieve
+			return memory[ptr]; // get the memory value at ptr
 		case CONSTANT:
 			address++;
 			return memory[address - 1];
@@ -335,12 +356,18 @@ void putValue(int reg, Memory value)
 		case DXREG:
 			regis.DX = value;
 			break;
+		case ADDRESS:
+			address++; // step over the memory address to store at
+			Memory ptr = memory[address - 1]; // a pointer to where to store value
+			memory[ptr] = value;
+			break;
 		default: // if the machine code tells it to put it into a non-existent register
 			printf("Error, register %d not recognized", reg);
 			system("pause");
 			exit(1);
 	}
 }
+
 
 /***************************  readInstructionPart  *******************************
 reads and returns the next "word" of an instruction (command or operands)
@@ -445,11 +472,9 @@ void printMemoryDumpHex( )
 int whichOpperand( char operand[LINE_SIZE] )
 {
 	char letter = operand[ 0 ];
-	if ( letter == 'a' )
-	{
+	if ( letter == 'a' ) {
 		return AXREG;
-	}
-	else if ( letter == 'b' )
+	} else if ( letter == 'b' )
 	{
 		return BXREG;
 	}
@@ -464,6 +489,9 @@ int whichOpperand( char operand[LINE_SIZE] )
 	else if ( isdigit( letter ) )
 	{
 		return CONSTANT;
+	} else if (letter == '[')
+	{
+		return ADDRESS;
 	}
 	return -1;  //something went wrong if -1 is returned
 }
@@ -521,5 +549,5 @@ void changeToLowerCase( char line[ ] )
 }
 
 /* Problems:
-> Part 3: None
+> Part 4: None
 */
