@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ASM Playback</title>
+</head>
+<body>
+<div id="main">
+    <div id="navigation">
+        <button id="backward"><</button>
+        <form id="stepForm">
+            <input id="step" type="number" step="1" value="0">
+        </form>
+        <button id="forward">></button>
+    </div>
+    <div id="content">
+        <div id="memoryTableContainer">
+            <table id="memoryTable">
+                <tr>
+                    <th>#</th>
+                    <th>Value</th>
+                    <th>Human Readable</th>
+                </tr>
+            </table>
+        </div>
+        <div id="infoArea">
+            <table id="regisTable">
+                <tr>
+                    <th>AX</th>
+                    <th>BX</th>
+                    <th>CX</th>
+                    <th>DX</th>
+                    <th>Flag</th>
+                </tr>
+                <tr id="registerValues">
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                    <td>0</td>
+                </tr>
+            </table>
+            <h4 id="address">Address: 0</h4>
+        </div>
+    </div>
+</div>
+
+<style>
+    html, body {
+        background-color: rgb(22, 31, 44);
+        height: 100%;
+        font-family: Arial;
+        border: 0;
+        padding: 0;
+        overflow-y: hidden;
+    }
+
+    h4 {
+        color: #b4b4b4;
+    }
+
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    /* For Mozilla Firefox */
+    input[type="number"] {
+        -moz-appearance: textfield;
+    }
+
+    #navigation {
+        width: 100%;
+        height: 30px;
+        position: fixed;
+        top: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    #main {
+        height: 100%;
+        border: 0;
+        padding: 0;
+    }
+
+    #content {
+        position: relative;
+        top: 30px;
+        width: 100%;
+        flex-direction: row;
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        grid-gap: 5px;
+        height: calc(100% - 30px);
+        border: 0;
+        padding: 0;
+    }
+
+    #memoryTableContainer {
+        width: 100%;
+        height: 100%;
+        overflow-y: scroll;
+    }
+
+    #memoryTable {
+        width: 100%;
+        border-collapse: collapse;
+        border-radius: 4px;
+        background-color: rgb(22, 31, 44);
+        overflow-y: hidden;
+    }
+
+    #memoryTable > *:nth-child(even) {
+        background-color: rgb(27, 39, 54);
+    }
+
+    #memoryTable > * > th {
+        padding: 5px;
+        background-color: rgb(27, 201, 108);
+        border: 2px solid #2b2f34;
+    }
+
+    #memoryTable > * > td {
+        border: 2px solid #2b2f34;
+        padding: 10px;
+        color: #b4b4b4;
+    }
+
+    #regisTable {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    #regisTable > * > * > td {
+        color: #b4b4b4;
+        text-align: center;
+        padding: 10px;
+        border: 2px solid #2b2f34;
+    }
+
+    #step {
+        width: 30px;
+        text-align: center;
+        background-color: #353a41;
+        border: none;
+        border-radius: 2px;
+        margin: 5px;
+        color: #b4b4b4;
+    }
+
+    button {
+        background-color: #2b2f34;
+        color: #b4b4b4;
+        border-radius: 2px;
+        text-decoration: none;
+    }
+
+    #regisTable > * > * > th {
+        color: #b4b4b4;
+        text-align: center;
+        padding: 10px;
+        border: 2px solid #2b2f34;
+    }
+
+    #infoArea {
+        padding: 5px;
+        background-color: rgb(13, 22, 35);
+        display: flex;
+        flex-direction: column;
+    }
+
+</style>
+
+<script>
+    // data loaded in from c
+    {{}}
+
+    let currentStep = 0;
+
+    window.onload = function() {
+        buildMemoryTable();
+        updateInformation();
+
+        document.getElementById("stepForm").addEventListener("submit", (e) => {
+            e.preventDefault()
+           let newStep = parseInt(document.getElementById("step").value);
+           if (newStep < 0 || newStep >= totalSteps) {
+               document.getElementById("step").value = `${currentStep}`;
+           } else {
+               currentStep = newStep;
+               buildMemoryTable();
+               updateInformation();
+           }
+        });
+
+        document.getElementById("backward").addEventListener("click", () => {
+            if (currentStep <= 0) {
+                return; // would be out of range, skip
+            }
+
+            currentStep-=1;
+            buildMemoryTable();
+            updateInformation();
+
+            document.getElementById("step").value = `${currentStep}`;
+        })
+
+        document.getElementById("forward").addEventListener("click", () => {
+            if (currentStep >= totalSteps - 1) {
+                return; // would be out of range, skip
+            }
+
+            currentStep++;
+            buildMemoryTable();
+            updateInformation();
+
+            document.getElementById("step").value = `${currentStep}`;
+        })
+
+    }
+
+    function buildMemoryTable() {
+
+        const memoryTable = document.getElementById("memoryTable");
+        memoryTable.innerHTML = "";
+
+        // add title row
+        let titleRow = document.createElement("tr");
+        let numTitle =  document.createElement("th");
+        let valueTitle =  document.createElement("th");
+        let disassembledTitle =  document.createElement("th");
+
+        numTitle.innerHTML = "#";
+        valueTitle.innerHTML = "Value"
+        disassembledTitle.innerHTML = "Human Readable"
+
+        titleRow.appendChild(numTitle);
+        titleRow.appendChild(valueTitle);
+        titleRow.appendChild(disassembledTitle);
+        memoryTable.appendChild(titleRow);
+
+
+        let lineIsField = false;
+        for (let i = 0; i < memorySize; i++) {
+            let offset = currentStep * memorySize;
+            let value = memoryHistory[offset + i];
+            const row = document.createElement("tr");
+            const idCell = document.createElement("td");
+            const valueCell = document.createElement("td");
+            const disassembleCell = document.createElement("td");
+            idCell.innerHTML = `${i}`;
+            valueCell.innerHTML = `${value}`;
+
+            if (lineIsField) {
+                disassembleCell.innerHTML = `${value}`;
+                lineIsField = false;
+            } else {
+                let disassembledLine = disassembleLine(value);
+                if (disassembledLine == null) {
+                    disassembleCell.innerHTML = `${value}`;
+                } else {
+                    disassembleCell.innerHTML = disassembledLine.line;
+                    lineIsField = disassembledLine.field;
+                }
+            }
+
+            row.appendChild(idCell);
+            row.appendChild(valueCell);
+            row.appendChild(disassembleCell);
+
+            // highlight row at address
+            let styleString = "";
+            if (i === addressHistory[currentStep]) {
+                styleString += "background-color: rgb(53, 70, 94);";
+            }
+            if (currentStep > 0 && value !== memoryHistory[offset - memorySize + i]) {
+                // the memory has changed since last time
+                styleString += `border-left: 4px solid rgb(222, 63, 42);`
+            }
+            row.style = styleString;
+
+            memoryTable.appendChild(row);
+        }
+    }
+
+    function updateInformation() {
+        let offset = currentStep * 5;
+        let row = document.getElementById("registerValues");
+
+        row.children[0].innerHTML = registerHistory[offset + 0]; // AX
+        row.children[1].innerHTML = registerHistory[offset + 1]; // BX
+        row.children[2].innerHTML = registerHistory[offset + 2]; // CX
+        row.children[3].innerHTML = registerHistory[offset + 3]; // DX
+        row.children[4].innerHTML = registerHistory[offset + 4]; // Flag
+
+        document.getElementById("address").innerHTML = `Address: ${addressHistory[currentStep]}`;
+    }
+
+    function disassembleLine(line) {
+        let noArgs = {
+            HALT: {
+                code: 5,
+                field: false,
+                args: 0,
+            },
+            GET: {
+                code: 6,
+                field: false,
+                args: 0,
+            },
+            PUT: {
+                code: 7,
+                field: false,
+                args: 0,
+
+            }
+        }
+
+        let singleArgs = {
+            BRK: {
+                code: 3,
+                field: false,
+                args: 0,
+            },
+            IRET: {
+                code: 4,
+                field: false,
+                args: 0,
+            }, JE: {
+                code: 8,
+                field: true,
+                args: 1,
+            }, JNE: {
+                code: 9,
+                field: true,
+                args: 1,
+            }, JB: {
+                code: 10,
+                field: true,
+                args: 1,
+            }, JBE: {
+                code: 11,
+                field: true,
+                args: 1,
+            }, JA: {
+                code: 12,
+                field: true,
+                args: 1,
+            }, JAE: {
+                code: 13,
+                field: true,
+                args: 1,
+            }, JMP: {
+                code: 14,
+                field: true,
+                args: 1,
+            }
+        }
+        let twoArgs = {
+            OR: {
+                code: 32,
+                field: true,
+                args: 2,
+            }, AND: {
+                code: 64,
+                field: true,
+                args: 2,
+            }, CMP: {
+                code: 96,
+                field: true,
+                args: 2,
+            }, SUB: {
+                code: 128,
+                field: true,
+                args: 2,
+            }, ADD: {
+                code: 160,
+                field: true,
+                args: 2,
+            }, MOVREG: {
+                code: 192,
+                field: true,
+                args: 2,
+            }, MOVMEM: {
+                code: 224,
+                field: true,
+                args: 2,
+            }
+        }
+
+        let noArgumentMask = 0b00000111
+        let oneArgumentMask = 0b00011111
+        let twoArgumentMask = 0b11100000
+
+        let twoArgumentCommand = match(line, twoArgs, twoArgumentMask);
+        if (twoArgumentCommand !== null) {
+            let arg1Mask = 24;
+            let arg2Mask = 7;
+            let arg1Code = (line & arg1Mask) >> 3;
+            let arg2Code = (line & arg2Mask);
+
+            let argCodes = {
+                0: "AX",
+                1: "BX",
+                2: "CX",
+                3: "DX",
+                4: "ADDRBX",
+                5: "ADDRCONSTBX",
+                6: "ADDR",
+                7: "CONST"
+            }
+
+            let arg1 = argCodes[arg1Code];
+            let arg2 = argCodes[arg2Code];
+
+            let requiresField = arg2Code === 5 || arg2Code === 6 || arg2Code === 7;
+            return {
+                line: `${twoArgumentCommand.name ?? "???"} ${arg1 ?? "XX"} ${arg2 ?? "XX"}`,
+                field: requiresField,
+            }
+        }
+
+        let oneArgumentCommand = match(line, singleArgs, oneArgumentMask);
+        if (oneArgumentCommand !== null) {
+            return {
+                line: oneArgumentCommand.name,
+                field: true,
+            }
+        }
+
+        let noArgumentCommand = match(line, noArgs, noArgumentMask);
+        if (noArgumentCommand !== null) {
+            return {
+                line: noArgumentCommand.name,
+                field: false,
+            };
+        }
+
+        function match(line, commands, mask) {
+            let commandNames = Object.keys(commands)
+            for (let commandName of commandNames) {
+                if (((commands[commandName].code & mask) ^ (line & mask)) === 0) {
+                    return {
+                        name: commandName,
+                        ...commands[commandName]
+                    };
+                }
+            }
+            return null;
+        }
+    }
+</script>
+</body>
+</html>

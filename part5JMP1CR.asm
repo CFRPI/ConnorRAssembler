@@ -1,0 +1,9 @@
+MOV AX 2
+MOV BX [12]
+MOV CX BX
+ADD CX AX
+MOV [7] CX
+JMP 2
+halt
+
+3

@@ -1,0 +1,9 @@
+MOV AX [12]
+MOV BX [13]
+MOV CX 5
+MOV DX 100
+CMP CX [12]
+halt
+
+5
+6

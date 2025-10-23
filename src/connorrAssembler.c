@@ -1,18 +1,22 @@
 // name: Connor Reed
 // CSC2025 Assembler Project
-// date: 10/10/25
-// i/o files: part4CR.asm
+// date: 10/23/25
+// i/o files: part5FibCR.asm, part5JumpsFalseCR.asm, part5JumpsTrueCR.asm
 // description: Reads an assembly file and generates machine code then executes that machine code on a virtual machine
-// currently implemented: Mov with registers, constants, and memory, halt, add, put
+// currently implemented: Mov with registers, constants, and memory, halt, add, put, get, all jumps
 
 #define _CRT_SECURE_NO_WARNINGS  // lets us use deprecated code
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
+#include "trace.h"
 
-char ASM_FILE_NAME[ ] = "part4CR.asm";
+// we expect 9 5's and a 7 from part5JumpsTrueCR.asm
+// we expect 9 5's from part5JumpsFalseCR.asm
+// part5FibCR.asm should print the first n Fibonacci numbers
+// for the number inputted to GET
+char ASM_FILE_NAME[ ] = "part5FibCR.asm";
 
 #define MAX 150			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output
@@ -32,6 +36,16 @@ char ASM_FILE_NAME[ ] = "part4CR.asm";
 #define MOVMEM 224
 #define ADD 160
 #define PUT 7 // outputs ax
+#define GET 6
+#define CMP 96
+#define JE 0b00001000 // These are the constants written out in binary
+#define JNE 0b00001001
+#define JB 0b00001010
+#define JBE 0b00001011
+#define JA 0b00001100
+#define JAE 0b00001101
+#define JMP 0b00001110
+#define ANYJUMP 0b00001000 // matches any jump
 
 //boolean
 #define TRUE 1
@@ -69,21 +83,29 @@ void printMemoryDumpHex( );				// Prints memory in hexadecimal
 void putValue( int reg, Memory value ); // puts a value into a register
 Memory getValue( int operand ); // gets a value from a register or constant at address
 void readInstructionPart(char line[], char part[], int *index); // reads the next part of a line of assembly
+void convertJumpToMachineCode(char *part1, char *part2, char *part3); // converts any jump command to machine code
+void runJumpCommand(Memory address); // runs any jump command
+
+Trace trace = {};
 int main( )
 {
 	assembler( );
 	printf("=================================================\n");
 	printf("Memory after program is converted to machine code\n");
 	printf("=================================================\n");
-	printMemoryDumpHex();
+	printMemoryDump();
 	runMachineCode( );
+
+	recordStep(&trace, &regis, memory, address);
 
 	printf("================================\n");
 	printf("Memory after program is finished\n");
 	printf("================================\n");
 
-	printMemoryDumpHex( );  //displays memory with final values
-	
+	printMemoryDump( );  //displays memory with final values
+
+	saveTrace(&trace);
+
 	printf( "\n" );
 	system( "pause" );
 	return 0;
@@ -99,7 +121,7 @@ void assembler( )
 {
 	address = 0;
 	FILE* fin;		// File pointer for reading in the assembly code.
-	//recommend changing so you can type in file name
+	     //recommend changing so you can type in file name
 	fin = fopen(ASM_FILE_NAME, "r" );
 	if ( fin == NULL )
 	{
@@ -120,11 +142,12 @@ fin - file pointer to read from and converts it to machine code line by line wri
 
 Return Value - void
 ---------------------------------------------------------------------*/
-void convertToMachineCode( FILE *fin ) {
+void convertToMachineCode( FILE *fin )
+{
 	char line[LINE_SIZE];		// full command
-	char part1[LINE_SIZE];	// the asm command
-	char part2[ LINE_SIZE ] = "";// the two operands, could be empty
-	char part3[ LINE_SIZE ] = "";	
+	char part1[LINE_SIZE];	// determines which command
+	char part2[ LINE_SIZE ] = ""; // the first operand, may be empty
+	char part3[ LINE_SIZE ] = ""; // the second operand, may be empty
 	Memory machineCode = 0;			// One line of converted asm code from the file
 
 	fgets( line, LINE_SIZE, fin );		// Takes one line from the asm file
@@ -135,29 +158,30 @@ void convertToMachineCode( FILE *fin ) {
 	
 	splitCommand( line, part1, part2, part3 );
 
-	// determines whether it will read in a value to put in the 16 bit slot
+	     // determines whether it will read in a value to put in the 16 bit slot
 	int requires_16_bit_field = 0; // 1 if 16 bits are required at end of command for a constant or memory address
 
-	if ( part1[0] == 'h' )  //halt
+	if ( part1[0] == 'h' ) //halt
 	{
 		memory[address] = HALT;
 		address++;
 	}
 	else if ( part1[0] == 'm' )  //move into a register or memory location
 	{
-		// 3 bits for op, 2 bits for reg1, 3 bits for reg2 or constant
-
-		if (part2[0] == '[') { // movmem
+		     // 3 bits for op, 2 bits for reg1, 3 bits for reg2 or constant
+		if (part2[0] == '[')
+			{ // movmem
 			machineCode = MOVMEM;
 			char temp[LINE_SIZE]; // swap part 2 and 3
 			strcpy(temp, part2);
 			strcpy(part2, part3);
 			strcpy(part3, temp);
-		} else { // movreg
+		} else
+			{ // movreg
 			machineCode = MOVREG;
 		}
 
-		// operand 1 is not the command but the first operand to follow it
+		     // operand 1 is not the command but the first operand to follow it
 		int operand1 = whichOpperand(part2); // the first operand of the line
 		int operand2 = whichOpperand(part3); // the second operand of the line
 
@@ -177,19 +201,42 @@ void convertToMachineCode( FILE *fin ) {
 		machineCode |= operand1 << 3; // put in target register
 		machineCode |= operand2; // put in reg or const to add
 		memory[address] = machineCode;
+		printf("machine code for add %d\n",operand2);
 
-		requires_16_bit_field = operand2 == CONSTANT || operand2 == ADDRESS; // we need a 16 bit field if we are adding a constant
+		requires_16_bit_field = operand2 == CONSTANT || operand2 == ADDRESS; // we need a 16 bit field if we are adding a constant or address
 		address++; // increment address
-	} else if (part1[0] == 'p')
+	} else if (part1[0] == 'p') // put
 	{
 		memory[address] = PUT;
 		address ++; // increment address
+	} else if (part1[0] == 'g')
+		{
+		     // get
+		memory[address] = GET;
+		address ++; // increment address
 	} else if (line[0] == '\n')
 	{
-		memory[address] == 0;
+		memory[address] = 0;
 		address++;
+	} else if (line[0] == 'c')
+		{
+		     // cmp
+		int operand1 = whichOpperand(part2); // must be a register
+		int operand2 = whichOpperand(part3); // any type
+		machineCode = CMP;
+
+		machineCode |= operand1 << 3; // move operand to the right spot
+		machineCode |= operand2;
+		memory[address] = machineCode;
+
+		requires_16_bit_field = operand2 == CONSTANT || operand2 == ADDRESS; // we need a 16 bit field if we are comparing a constant or address
+		address++;
+	} else if (line[0] == 'j')
+	{
+		convertJumpToMachineCode(part1, part2, part3);
 	} else if (isdigit(part1[0]))
-	{ // assume it is a number if it is not a command
+	{
+		     // assume it is a number if it is not a command
 		memory[address] = convertToNumber(part1, 0);
 		address++;
 	}
@@ -198,7 +245,7 @@ void convertToMachineCode( FILE *fin ) {
 	{ // we need to record the 16 bits after this command
 			// convert part3 to a number and store it in the next memory slot
 		memory[address] = (Memory) convertToNumber(part3, 0);
-		address += 1;
+		address ++;
 	}
 
 	     //output memory, for debugging, comment out when you don't need it. could use printMemoryDumpHex
@@ -206,6 +253,61 @@ void convertToMachineCode( FILE *fin ) {
 	// printMemoryDumpHex( );
 }
 
+/*
+ * This function is called as soon as we know we are converting a jump command
+ * It handles all the conditions for the different if's needed to convert jumps
+ * It writes the command and destination to memory
+ *
+ * part1 - the first part of the command from splitCommand
+ * part2 - the second part of the command from splitCommand
+ * part3 - the third part of the command from splitCommand
+ *
+ * Return Value - void
+ */
+void convertJumpToMachineCode(char *part1, char *part2, char *part3)
+{
+	     // we match the jump command and put the correct command into memory
+	if (part1[1] == 'm' && part1[2] == 'p')
+	{
+		     // JMP
+		memory[address] = JMP;
+	} else if (part1[1] == 'a')
+	{
+		     // e differentiates JAE & JA
+		if (part1[2] == 'e')
+		{
+			memory[address] = JAE;
+		} else
+		{
+			memory[address] = JA;
+		}
+	} else if (part1[1] == 'b')
+	{
+		     // e differentiates JBE & JB
+		if (part1[2] == 'e')
+		{
+			memory[address] = JBE;
+		} else
+		{
+			memory[address] = JB;
+		}
+	} else if (part1[1] == 'e')
+	{
+		     // JE
+		memory[address] = JE;
+	} else if (part1[1] == 'n' && part1[2] == 'e')
+	{
+		     // JNE
+		memory[address] = JNE;
+	}
+
+	     // jump over the field so we don't overwrite it in the next line
+	address++;
+
+	     // write to the address field
+	memory[address] = (Memory) convertToNumber(part2, 0);
+	address ++; // next line
+}
 
 /********************   splitCommand   ***********************
 splits a line of asm into it's parts
@@ -259,11 +361,12 @@ void runMachineCode( )
 	Memory part1, part2, part3; //command, operand1, 
 
 	address = 0;
-	Memory fullCommand = memory[ address ];
+	Memory fullCommand = memory[ address ]; // read the first command from memory
 	address++;
 	while ( fullCommand != HALT )
 	{
-		// parts of the command
+		recordStep(&trace, &regis, memory, address);
+		     // parts of the command
 		part1 = fullCommand & mask1;
 		part2 = fullCommand & mask2;
 		part3 = fullCommand & mask3;
@@ -272,7 +375,8 @@ void runMachineCode( )
 			Memory value = getValue(part3);
 			int target = part2 >> 3;
 			putValue(target, value);
-		} else if (part1 == MOVMEM) {
+		} else if (part1 == MOVMEM)
+		{
 			Memory value = getValue(part2 >> 3);
 			int target = part3;
 			putValue(target, value);
@@ -282,15 +386,99 @@ void runMachineCode( )
 			int target_register = part2 >> 3;
 			Memory sum = getValue(target_register) + getValue(part3); // sum of two operands
 			putValue(target_register, sum); // write to target register
-		} else if (part3 == PUT) { // PUT command is in the last 3 bits
+		} else if (part1 == CMP)
+		{
+			     // get the value at the register operand1 and the value operand2
+			int operand1 = getValue(part2 >> 3); //
+			int operand2 = getValue(part3);
+
+			if (operand1 > operand2)
+			{
+				regis.flag = 1;
+			} else if (operand1 < operand2)
+			{
+				regis.flag = -1;
+			} else
+			{
+				     // operand1 == operand2
+				regis.flag = 0;
+			}
+		} else if (part2 == ANYJUMP)
+		{
+			Memory targetAddress = memory[address];
+			runJumpCommand(targetAddress);
+			     // we dont go to the next command after a jump
+			     // instead we go to wherever the jump command states
+		} else if (part3 == PUT) // PUT command is in the last 3 bits
+		{
 			printf("		REG AX: %d\n", regis.AX);
+		} else if (part3 == GET)
+		{
+			int input = 0;
+			printf("Enter an Integer > ");
+			scanf("%d", &input);
+			regis.AX = input;
 		}
 
  		fullCommand = memory[ address ];  //the next command
-		address ++; // next command
 		//debugging, comment out when you don't need it
 		// printMemoryDumpHex( );
+		address ++; // next command
 	}
+}
+
+/*
+ * Runs any jump command from the machine code
+ * it handles the logic of which command is being called
+ * and whether it should jump or not
+ *
+ * Parameters:
+ * targetAddress - the address to jump to
+ *
+ * Return Value - void
+ */
+void runJumpCommand(Memory targetAddress)
+{
+	Memory command = memory[address - 1];
+
+	int performJump = 0;
+	if (command == JMP)
+	{
+		     // JMP always jumps regardless
+		performJump = 1;
+	} else if (command == JA && regis.flag == 1)
+	{
+		     // JA jumps when flag is 1
+		performJump = 1;
+	} else if (command == JE && regis.flag == 0)
+	{
+		     // JE jumps when flag is 0
+		performJump = 1;
+	} else if (command == JB && regis.flag == -1)
+	{
+		     // JB jumps when flag is -1
+		performJump = 1;
+	} else if (command == JAE && regis.flag >= 0)
+	{
+		     // JAE jumps when flag is 0 or 1
+		performJump = 1;
+	} else if (command == JBE && regis.flag <= 0)
+	{
+		     // JBE jumps when flag is 0 or -1
+		performJump = 1;
+	} else if (command == JNE && regis.flag != 0)
+	{
+		     // JE jumps when flag is not 0
+		performJump = 1;
+	}
+
+	if (performJump == 1)
+	{
+		address = targetAddress;
+	} else {
+		address ++; // step over the target address field
+	}
+
 }
 
 /*********************************************************************************
@@ -308,7 +496,8 @@ void runMachineCode( )
 Memory getValue(int operand)
 {
 	switch ( operand )
-	{ // read the value of either the register or constant specified
+	{
+		     // read the value of either the register or constant specified
 		case AXREG:
 			return (Memory) regis.AX;
 		case BXREG:
@@ -325,7 +514,8 @@ Memory getValue(int operand)
 			address++;
 			return memory[address - 1];
 		default: // nonexistent register
-			printf("Unknown register: %d", reg);
+			saveTrace(&trace);
+			printf("Unknown register: %d at address %d", reg, address);
 			system("pause");
 			exit(1);
 	}
@@ -341,7 +531,7 @@ Memory getValue(int operand)
  */
 void putValue(int reg, Memory value)
 {
-	// move value into the proper register
+	     // move value into the proper register
 	switch (reg)
 	{
 		case AXREG:
@@ -362,7 +552,8 @@ void putValue(int reg, Memory value)
 			memory[ptr] = value;
 			break;
 		default: // if the machine code tells it to put it into a non-existent register
-			printf("Error, register %d not recognized", reg);
+			saveTrace(&trace);
+			printf("Error, register %d not recognized address %d", reg, address);
 			system("pause");
 			exit(1);
 	}
@@ -384,7 +575,7 @@ void readInstructionPart(char line[], char part[], int *lineIndex)
 {
 	int partIndex = 0; // the index in the part array where the current character is being written
 
-					// copy until we hit a space or end of line/string
+	     // copy until we hit a space or end of line/string
 	while (line[*lineIndex] != ' ' && line[*lineIndex] != '\0' && line[*lineIndex] != '\n')
 	{
 		part[partIndex] = line[*lineIndex];
@@ -471,8 +662,10 @@ void printMemoryDumpHex( )
 /*--------------------------------------------------------------*/
 int whichOpperand( char operand[LINE_SIZE] )
 {
+	     // the first letter of the operand
 	char letter = operand[ 0 ];
-	if ( letter == 'a' ) {
+	if ( letter == 'a' )
+	{
 		return AXREG;
 	} else if ( letter == 'b' )
 	{
@@ -486,7 +679,7 @@ int whichOpperand( char operand[LINE_SIZE] )
 	{
 		return DXREG;
 	}
-	else if ( isdigit( letter ) )
+	else if ( isdigit( letter ) || letter == '-' )
 	{
 		return CONSTANT;
 	} else if (letter == '[')
@@ -549,5 +742,6 @@ void changeToLowerCase( char line[ ] )
 }
 
 /* Problems:
-> Part 4: None
+> Part 5: I had some trouble converting and running JMP but I figured it out, I had various bugs
+I found a bug in my whichOperand function that made it unable to handle negative numbers
 */
