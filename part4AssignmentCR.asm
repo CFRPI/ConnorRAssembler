@@ -1,0 +1,4 @@
+MOV BX 2
+ADD BX 5
+MOV [10] BX
+halt

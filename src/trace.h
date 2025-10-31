@@ -10,7 +10,7 @@
 #include <ctype.h>
 
 // the total number of steps in the program this will record,
-// change as you need but the default should be good for most use cases
+// change as you need
 #define MAX_STEPS 200
 // The memory size in your program, must always equal your MAX value defined
 // at the top of your program

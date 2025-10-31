@@ -1,0 +1,9 @@
+MOV AX 7
+MOV BX 6
+CMP AX BX
+JA 11
+MOV AX BX
+PUT
+halt
+PUT
+halt

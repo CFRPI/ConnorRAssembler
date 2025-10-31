@@ -16,7 +16,7 @@
 // we expect 9 5's from part5JumpsFalseCR.asm
 // part5FibCR.asm should print the first n Fibonacci numbers
 // for the number inputted to GET
-char ASM_FILE_NAME[ ] = "part5FibCR.asm";
+char ASM_FILE_NAME[ ] = "part6AssignmentCR.asm";
 
 #define MAX 150			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output

@@ -1,0 +1,53 @@
+GET
+MOV BX AX
+GET
+MOV CX AX
+MOV DX BX
+CMP CX 0
+JBE [20]
+CMP BX 0
+JA [50]
+MOV DX BX
+MOV AX DX
+PUT
+GET
+MOV CX AX
+JMP [5]
+halt
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+MOV [100] CX
+MOV [101] BX
+CMP CX 1
+JBE [63]
+ADD BX DX
+ADD CX -1
+JMP [54]
+JMP [13]
