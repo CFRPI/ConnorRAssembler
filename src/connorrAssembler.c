@@ -7,10 +7,10 @@
 
 #define _CRT_SECURE_NO_WARNINGS  // lets us use deprecated code
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "trace.h"
 
 // we expect 9 5's and a 7 from part5JumpsTrueCR.asm
 // we expect 9 5's from part5JumpsFalseCR.asm
@@ -86,7 +86,6 @@ void readInstructionPart(char line[], char part[], int *index); // reads the nex
 void convertJumpToMachineCode(char *part1, char *part2, char *part3); // converts any jump command to machine code
 void runJumpCommand(Memory command); // runs any jump command
 
-Trace trace = {};
 int main( )
 {
 	assembler( );
@@ -96,15 +95,11 @@ int main( )
 	printMemoryDump();
 	runMachineCode( );
 
-	recordStep(&trace, &regis, memory, address);
-
 	printf("================================\n");
 	printf("Memory after program is finished\n");
 	printf("================================\n");
 
 	printMemoryDump( );  //displays memory with final values
-
-	saveTrace(&trace);
 
 	printf( "\n" );
 	system( "pause" );
@@ -371,7 +366,6 @@ void runMachineCode( )
 	address++;
 	while ( fullCommand != HALT )
 	{
-		recordStep(&trace, &regis, memory, address);
 		     // parts of the command
 		part1 = fullCommand & mask1;
 		part2 = fullCommand & mask2;
@@ -510,7 +504,6 @@ Memory getValue(int operand)
 			address++;
 			return memory[address - 1];
 		default: // nonexistent register
-			saveTrace(&trace);
 			printf("Unknown register: %d at address %d", reg, address);
 			system("pause");
 			exit(1);
@@ -548,7 +541,6 @@ void putValue(int reg, Memory value)
 			memory[ptr] = value;
 			break;
 		default: // if the machine code tells it to put it into a non-existent register
-			saveTrace(&trace);
 			printf("Error, register %d not recognized address %d", reg, address);
 			system("pause");
 			exit(1);
