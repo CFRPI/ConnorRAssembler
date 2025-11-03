@@ -1,9 +1,11 @@
-MOV AX 7
-MOV BX 6
+; initial data
+; our goal is to find the larger of two numbers
+MOV AX -2
+MOV BX 34
+; if AX <= BX, AX = BX
 CMP AX BX
-JA 11
+JA 8
 MOV AX BX
-PUT
-halt
+; skip to here if AX was already greater
 PUT
 halt
