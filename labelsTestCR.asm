@@ -1,13 +1,5 @@
-MOV AX [A]
+MOV BX 15
+MOV [14] BX
+MOV AX [BX+-1]
 PUT
-JMP [B]
-H halt
-
-
-A 5
-
-
-
-B MOV AX 2
-PUT
-JMP H
+halt

@@ -14,9 +14,9 @@
 
 // part7CR.asm sums up 10 numbers with a loop
 // part7FibCR.asm calculates the inputted amount of Fibonacci numbers
-char ASM_FILE_NAME[ ] = "labelsTestCR.asm";
+char ASM_FILE_NAME[ ] = "part10CR.asm";
 
-#define MAX 150			// strlen of simulators memory can be changed
+#define MAX 500			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output
 #define LINE_SIZE 100	// For c-strings
 
@@ -35,6 +35,7 @@ char ASM_FILE_NAME[ ] = "labelsTestCR.asm";
 #define MOVREG 192
 #define MOVMEM 224
 #define ADD 160
+#define SUB 128
 #define PUT 7 // outputs ax
 #define GET 6
 #define CMP 96
@@ -170,12 +171,12 @@ void convertToMachineCode( FILE *fin, int pass )
 
 	fgets( line, LINE_SIZE, fin );		// Takes one line from the asm file
 
-	printf("Processing:\n%s\n", line, line[1]);
+	printf("Processing:\n%s\n", line);
 
 	changeToLowerCase( line );
 
 		 // one character then a space or end of line means label
-	if ((line[1] == '\0' || line[1] == ' ') && isalpha(line[0]))
+	if ((line[1] == ' ' || line[1] == '\n' || line[1] == '\0') && isalpha(line[0]))
 	{
 		if (pass == 0) {
 			char labelName = line[0];
@@ -183,12 +184,11 @@ void convertToMachineCode( FILE *fin, int pass )
 			// each letter, use it as an index into labelTable
 			int labelIndex = labelName - 'a';
 			labelTable[labelIndex] = address;
-
-			address++;
-			return;
-		} else { // pass == 1
+		}
+		if (line[1] == '\n' || line[1] == '\0') { // blank line after removing label
+			strcpy(line, "\n");
+		} else { // replace the line removing the label;
 			char newLine[LINE_SIZE];
-				 // replace the line removing the label;
 			int newLineIndex = 0;
 			int oldLineIndex = 2; // start after the label
 			while (line[oldLineIndex] != '\0') {
@@ -197,9 +197,13 @@ void convertToMachineCode( FILE *fin, int pass )
 				oldLineIndex++;
 			}
 
+			printf("===COPY\n");
+
 			strcpy(line, newLine);
 		}
 	}
+
+	printf("===line after splice: %s\n", line);
 
 	if (line[0] == ';')
 	{
@@ -258,6 +262,18 @@ void convertToMachineCode( FILE *fin, int pass )
 		operand1 = whichOpperand(part2); // reg
 		operand2 = whichOpperand(part3); // reg or const
 		machineCode = ADD;
+
+		machineCode |= operand1 << 3; // put in target register
+		machineCode |= operand2; // put in reg or const to add
+		memory[address] = machineCode;
+
+		requires_16_bit_field = operand2 == CONSTANT || operand2 == ADDRESS; // we need a 16 bit field if we are adding a constant or address
+		address++; // increment address
+	} else if (part1[0] == 's')
+	{
+		operand1 = whichOpperand(part2); // reg
+		operand2 = whichOpperand(part3); // reg or const
+		machineCode = SUB;
 
 		machineCode |= operand1 << 3; // put in target register
 		machineCode |= operand2; // put in reg or const to add
@@ -515,6 +531,12 @@ void runMachineCode( )
 				// the sum of the reg and reg/const to be moved into part2
 			int target_register = part2 >> 3;
 			Memory sum = getValue(target_register) + getValue(part3); // sum of two operands
+			putValue(target_register, sum); // write to target register
+		} else if (part1 == SUB)
+		{
+			// the sum of the reg and reg/const to be moved into part2
+			int target_register = part2 >> 3;
+			Memory sum = getValue(target_register) - getValue(part3); // sum of two operands
 			putValue(target_register, sum); // write to target register
 		} else if (part1 == CMP)
 		{
