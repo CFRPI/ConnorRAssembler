@@ -1,7 +1,7 @@
 // name: Connor Reed
 // CSC2025 Assembler Project
-// date: 11/3/25
-// i/o files: part4AssignmentCR.asm, part5AssignmentCR.asm, part6AssignmentCR.asm, part6JumpsFalseCR.asm, part6JumpsTrueCR.asm
+// date: 11/25/25
+// i/o files: part7CR.asm part7FibCR.asm
 // description: Reads an assembly file and generates machine code then executes that machine code on a virtual machine
 // currently implemented: Mov with registers, constants, and memory, halt, add, put, get, all jumps
 
@@ -12,11 +12,9 @@
 #include <stdio.h>
 #include <string.h>
 
-// we expect 9 5's and a 7 from part5JumpsTrueCR.asm
-// we expect 9 5's from part5JumpsFalseCR.asm
-//
-// for the number inputted to GET
-char ASM_FILE_NAME[ ] = "part5AssignmentCR.asm";
+// part7CR.asm sums up 10 numbers with a loop
+// part7FibCR.asm calculates the inputted amount of Fibonacci numbers
+char ASM_FILE_NAME[ ] = "part7FibCR.asm";
 
 #define MAX 150			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output
@@ -734,5 +732,5 @@ void changeToLowerCase( char line[ ] )
 I found a bug in my whichOperand function that made it unable to handle negative numbers
 
 I also had the weird bug with long comments breaking convertToMachine code but I figured that one out
-and set LINE_SIZE to 100 after talking to yous
+and set LINE_SIZE to 100 after talking to you
 */
