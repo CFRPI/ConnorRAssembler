@@ -1,8 +1,13 @@
-MOV BX 5
-MOV [A] BX
 MOV AX [A]
 PUT
-halt
+JMP [B]
+H halt
 
 
-A
+A 5
+
+
+
+B MOV AX 2
+PUT
+JMP H

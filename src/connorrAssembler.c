@@ -174,7 +174,8 @@ void convertToMachineCode( FILE *fin, int pass )
 
 	changeToLowerCase( line );
 
-	if (line[1] == '\0' && isalpha(line[0])) // one character line means a label
+		 // one character then a space or end of line means label
+	if ((line[1] == '\0' || line[1] == ' ') && isalpha(line[0]))
 	{
 		if (pass == 0) {
 			char labelName = line[0];
@@ -186,9 +187,17 @@ void convertToMachineCode( FILE *fin, int pass )
 			address++;
 			return;
 		} else { // pass == 1
-				 // we don't do anything with labels in the second pass
-			address++;
-			return;
+			char newLine[LINE_SIZE];
+				 // replace the line removing the label;
+			int newLineIndex = 0;
+			int oldLineIndex = 2; // start after the label
+			while (line[oldLineIndex] != '\0') {
+				newLine[newLineIndex] = line[oldLineIndex];
+				newLineIndex++;
+				oldLineIndex++;
+			}
+
+			strcpy(line, newLine);
 		}
 	}
 
@@ -807,6 +816,7 @@ void printMemoryDump( )
 	for (int i = 0; i < 26; i++) {
 		printf("%5d", labelTable[i]);
 	}
+	printf("\n");
 }
 
 
@@ -908,7 +918,7 @@ int convertToNumber( char line[ ], int start )
 
 		 // this is a label
 	if (isalpha(line[start])) {
-		int index = line[start] = 'a'; // index in labelTable
+		int index = line[start] - 'a'; // index in labelTable
 		return labelTable[index];
 	}
 
