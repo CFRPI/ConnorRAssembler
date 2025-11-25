@@ -1,7 +1,7 @@
 // name: Connor Reed
 // CSC2025 Assembler Project
-// date: 10/23/25
-// i/o files: part5FibCR.asm, part5JumpsFalseCR.asm, part5JumpsTrueCR.asm
+// date: 11/3/25
+// i/o files: part4AssignmentCR.asm, part5AssignmentCR.asm, part6AssignmentCR.asm, part6JumpsFalseCR.asm, part6JumpsTrueCR.asm
 // description: Reads an assembly file and generates machine code then executes that machine code on a virtual machine
 // currently implemented: Mov with registers, constants, and memory, halt, add, put, get, all jumps
 
@@ -14,13 +14,13 @@
 
 // we expect 9 5's and a 7 from part5JumpsTrueCR.asm
 // we expect 9 5's from part5JumpsFalseCR.asm
-// part5FibCR.asm should print the first n Fibonacci numbers
+//
 // for the number inputted to GET
-char ASM_FILE_NAME[ ] = "part5FibCR.asm";
+char ASM_FILE_NAME[ ] = "part5AssignmentCR.asm";
 
 #define MAX 150			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output
-#define LINE_SIZE 20	// For c-strings
+#define LINE_SIZE 100	// For c-strings
 
 //OPERAND TYPES, REGISTERS AND OTHER
 #define AXREG 0
@@ -38,14 +38,14 @@ char ASM_FILE_NAME[ ] = "part5FibCR.asm";
 #define PUT 7 // outputs ax
 #define GET 6
 #define CMP 96
-#define JE 0b00001000 // These are the constants written out in binary
-#define JNE 0b00001001
-#define JB 0b00001010
-#define JBE 0b00001011
-#define JA 0b00001100
-#define JAE 0b00001101
-#define JMP 0b00001110
-#define ANYJUMP 0b00001000 // matches any jump
+#define JE 8
+#define JNE 9
+#define JB 10
+#define JBE 11
+#define JA 12
+#define JAE 13
+#define JMP 14
+#define ANYJUMP 8 // matches any jump
 
 //boolean
 #define TRUE 1
@@ -84,7 +84,7 @@ void putValue( int reg, Memory value ); // puts a value into a register
 Memory getValue( int operand ); // gets a value from a register or constant at address
 void readInstructionPart(char line[], char part[], int *index); // reads the next part of a line of assembly
 void convertJumpToMachineCode(char *part1, char *part2, char *part3); // converts any jump command to machine code
-void runJumpCommand(Memory address); // runs any jump command
+void runJumpCommand(Memory command); // runs any jump command
 
 int main( )
 {
@@ -147,6 +147,13 @@ void convertToMachineCode( FILE *fin )
 
 	fgets( line, LINE_SIZE, fin );		// Takes one line from the asm file
 
+	if (line[0] == ';')
+	{
+		     // If we have a comment, don't look at the rest of the line
+		     // or change anything
+		return;
+	}
+
 	printf("Processing:\n%s\n", line);
 
 	changeToLowerCase( line );
@@ -196,7 +203,6 @@ void convertToMachineCode( FILE *fin )
 		machineCode |= operand1 << 3; // put in target register
 		machineCode |= operand2; // put in reg or const to add
 		memory[address] = machineCode;
-		printf("machine code for add %d\n",operand2);
 
 		requires_16_bit_field = operand2 == CONSTANT || operand2 == ADDRESS; // we need a 16 bit field if we are adding a constant or address
 		address++; // increment address
@@ -399,8 +405,7 @@ void runMachineCode( )
 			}
 		} else if (part2 == ANYJUMP)
 		{
-			Memory targetAddress = memory[address];
-			runJumpCommand(targetAddress);
+			runJumpCommand(fullCommand);
 			     // we dont go to the next command after a jump
 			     // instead we go to wherever the jump command states
 		} else if (part3 == PUT) // PUT command is in the last 3 bits
@@ -427,52 +432,43 @@ void runMachineCode( )
  * and whether it should jump or not
  *
  * Parameters:
- * targetAddress - the address to jump to
+ * command - the command of which jump it is
  *
  * Return Value - void
  */
-void runJumpCommand(Memory targetAddress)
+void runJumpCommand(Memory command)
 {
-	Memory command = memory[address - 1];
+	Memory targetAddress = memory[address];
+	address++;
 
 	int performJump = 0;
 	if (command == JMP)
 	{
-		     // JMP always jumps regardless
-		performJump = 1;
+		performJump = 1; // JMP always jumps regardless
 	} else if (command == JA && regis.flag == 1)
 	{
-		     // JA jumps when flag is 1
-		performJump = 1;
+		performJump = 1; // JA jumps when flag is 1
 	} else if (command == JE && regis.flag == 0)
 	{
-		     // JE jumps when flag is 0
-		performJump = 1;
+		performJump = 1; // JE jumps when flag is 0
 	} else if (command == JB && regis.flag == -1)
 	{
-		     // JB jumps when flag is -1
-		performJump = 1;
+		performJump = 1; // JB jumps when flag is -1
 	} else if (command == JAE && regis.flag >= 0)
 	{
-		     // JAE jumps when flag is 0 or 1
-		performJump = 1;
+		performJump = 1; // JAE jumps when flag is 0 or 1
 	} else if (command == JBE && regis.flag <= 0)
 	{
-		     // JBE jumps when flag is 0 or -1
-		performJump = 1;
+		performJump = 1; // JBE jumps when flag is 0 or -1
 	} else if (command == JNE && regis.flag != 0)
 	{
-		     // JE jumps when flag is not 0
-		performJump = 1;
+		performJump = 1; // JE jumps when flag is not 0
 	}
 
 	if (performJump == 1)
 	{
 		address = targetAddress;
-	} else {
-		address ++; // step over the target address field
 	}
-
 }
 
 /*********************************************************************************
@@ -734,6 +730,9 @@ void changeToLowerCase( char line[ ] )
 }
 
 /* Problems:
-> Part 5: I had some trouble converting and running JMP but I figured it out, I had various bugs
+> Part 6: I had some trouble converting and running JMP but I figured it out, I had various bugs
 I found a bug in my whichOperand function that made it unable to handle negative numbers
+
+I also had the weird bug with long comments breaking convertToMachine code but I figured that one out
+and set LINE_SIZE to 100 after talking to yous
 */
