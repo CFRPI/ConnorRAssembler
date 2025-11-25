@@ -1,0 +1,67 @@
+GET
+MOV [100] AX
+GET
+MOV [101] AX
+FUN [75] 2 [100] [101]
+FUN [30] 3 [100] [101] [102]
+MOV AX [18]
+PUT
+HALT
+; returns correct value when
+; input1 > input2
+
+
+
+
+
+
+
+MOV BX [29]
+MOV BX [BX+1]
+MOV DX [BX]
+MOV AX DX
+MOV BX [29]
+MOV BX [BX+2]
+MOV BX [BX]
+MOV CX 1
+CMP CX BX
+JAE [51]
+ADD AX DX
+ADD CX 1
+JMP [43]
+MOV BX [29]
+MOV BX [BX+3]
+MOV [BX] AX
+RET
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+MOV BX [74]
+MOV BX [BX+1]
+MOV CX [BX]
+MOV BX [74]
+MOV BX [BX+2]
+CMP CX [BX]
+JAE [95]
+MOV DX [BX]
+MOV [BX] CX
+MOV BX [74]
+MOV BX [BX+3]
+MOV BX [BX]
+MOV [BX] DX
+RET

@@ -1,7 +1,7 @@
 // name: Connor Reed
 // CSC2025 Assembler Project
 // date: 11/25/25
-// i/o files: part7CR.asm part7FibCR.asm
+// i/o files: part8CR.asm, part8TestCR.asm, part8class11_10Wyatt.asm, part8classLoopWyatt.asm
 // description: Reads an assembly file and generates machine code then executes that machine code on a virtual machine
 // currently implemented: Mov with registers, constants, and memory, halt, add, put, get, all jumps
 
@@ -14,7 +14,7 @@
 
 // part7CR.asm sums up 10 numbers with a loop
 // part7FibCR.asm calculates the inputted amount of Fibonacci numbers
-char ASM_FILE_NAME[ ] = "part7FibCR.asm";
+char ASM_FILE_NAME[ ] = "part8TestCR.asm";
 
 #define MAX 150			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output
@@ -27,6 +27,8 @@ char ASM_FILE_NAME[ ] = "part7FibCR.asm";
 #define DXREG 3
 #define CONSTANT 7
 #define ADDRESS 6
+#define BXADDR 4
+#define BXPLUS 5
 
 //commands
 #define HALT 5
@@ -43,6 +45,8 @@ char ASM_FILE_NAME[ ] = "part7FibCR.asm";
 #define JA 12
 #define JAE 13
 #define JMP 14
+#define FUN 4
+#define RET 3
 #define ANYJUMP 8 // matches any jump
 
 //boolean
@@ -65,6 +69,7 @@ struct Registers
 typedef short int Memory;  // sets the type of memory to short int
 Memory memory[MAX] = { 0 };   // global variable the memory of the virtual machine
 Memory address;     // global variable the current address in the virtual machine
+Memory stackPointer = MAX - 1;
 
 //function prototypes
 void runMachineCode( );	// Executes the machine code
@@ -83,6 +88,9 @@ Memory getValue( int operand ); // gets a value from a register or constant at a
 void readInstructionPart(char line[], char part[], int *index); // reads the next part of a line of assembly
 void convertJumpToMachineCode(char *part1, char *part2, char *part3); // converts any jump command to machine code
 void runJumpCommand(Memory command); // runs any jump command
+void convertFunctionToMachineCode(char line[LINE_SIZE]); // converts function calls to machine code
+void push(Memory value); // pushes a value onto the stack
+Memory pop(); // pops a value off of the stack
 
 int main( )
 {
@@ -161,10 +169,19 @@ void convertToMachineCode( FILE *fin )
 	     // determines whether it will read in a value to put in the 16 bit slot
 	int requires_16_bit_field = 0; // 1 if 16 bits are required at end of command for a constant or memory address
 
+		 // operands of the command, they are declared in the function scope
+		 // so we can check for a bxplus at the end
+	int operand1 = -1;
+	int operand2 = -1;
+
 	if ( part1[0] == 'h' ) //halt
 	{
 		memory[address] = HALT;
 		address++;
+	}
+	if (part1[0] == 'f')
+	{
+		convertFunctionToMachineCode(line);
 	}
 	else if ( part1[0] == 'm' )  //move into a register or memory location
 	{
@@ -182,8 +199,8 @@ void convertToMachineCode( FILE *fin )
 		}
 
 		     // operand 1 is not the command but the first operand to follow it
-		int operand1 = whichOpperand(part2); // the first operand of the line
-		int operand2 = whichOpperand(part3); // the second operand of the line
+		operand1 = whichOpperand(part2); // the first operand of the line
+		operand2 = whichOpperand(part3); // the second operand of the line
 
 		machineCode = machineCode | operand1 << 3; // bit shifts 3 to the left and adds it to machine code
 		machineCode = machineCode | operand2;
@@ -194,8 +211,8 @@ void convertToMachineCode( FILE *fin )
 		address++;
 	} else if (part1[0] == 'a')
 	{
-		int operand1 = whichOpperand(part2); // reg
-		int operand2 = whichOpperand(part3); // reg or const
+		operand1 = whichOpperand(part2); // reg
+		operand2 = whichOpperand(part3); // reg or const
 		machineCode = ADD;
 
 		machineCode |= operand1 << 3; // put in target register
@@ -213,6 +230,10 @@ void convertToMachineCode( FILE *fin )
 		     // get
 		memory[address] = GET;
 		address ++; // increment address
+	} else if (part1[0] == 'r')
+	{ // ret
+		memory[address] = RET;
+		address++; // increment address
 	} else if (line[0] == '\n')
 	{
 		memory[address] = 0;
@@ -220,8 +241,8 @@ void convertToMachineCode( FILE *fin )
 	} else if (line[0] == 'c')
 		{
 		     // cmp
-		int operand1 = whichOpperand(part2); // must be a register
-		int operand2 = whichOpperand(part3); // any type
+		operand1 = whichOpperand(part2); // must be a register
+		operand2 = whichOpperand(part3); // any type
 		machineCode = CMP;
 
 		machineCode |= operand1 << 3; // move operand to the right spot
@@ -247,9 +268,67 @@ void convertToMachineCode( FILE *fin )
 		address ++;
 	}
 
+	if (operand2 == BXPLUS)
+	{
+			 // we need a field for bxplus
+		char plusValue[LINE_SIZE]; // the string containing the plus value
+		int part3Index = 4; // index in part3 while copying, start right after the +
+		int plusValueIndex = 0; // index in plusValue while copying
+			 // copy into plusValue until we hit a ']', starting after the +
+		while (part3[part3Index] != ']')
+		{
+			plusValue[plusValueIndex] = part3[part3Index];
+			part3Index++;
+			plusValueIndex++;
+		}
+		plusValue[plusValueIndex] = '\0'; // terminate string
+		memory[address] = (Memory) convertToNumber(plusValue, 0);
+		address++;
+	}
+
 	     //output memory, for debugging, comment out when you don't need it. could use printMemoryDumpHex
 	// printf( "\n" );
 	// printMemoryDumpHex( );
+}
+
+void convertFunctionToMachineCode(char line[LINE_SIZE])
+{
+	int lineIndex = 0; // points to the char in line we are reading at
+	char addressStr[LINE_SIZE]; // will eventually hold the function address as a string
+		 // the FUN part of the command will be written to addressStr
+		 // this is just temporary and will be overwritten later, we don't really need it
+		 // we just need to increment line index
+	readInstructionPart(line, addressStr, &lineIndex);
+	memory[address] = FUN; // Write fun command to memory
+	address++;
+
+	lineIndex ++; // step over space
+
+		 // now address str actually contains the address as a string
+	readInstructionPart(line, addressStr, &lineIndex);
+	memory[address] = convertToNumber(addressStr, 0); // write function address to memory
+	address++;
+
+	lineIndex++; // step over space
+
+	char numArgsStr[LINE_SIZE]; // a string containing the number of arguments
+	readInstructionPart(line, numArgsStr, &lineIndex);
+	int numArgs = convertToNumber(numArgsStr, 0);
+	memory[address] = numArgs; // write to memory
+	address++;
+	lineIndex++; // step over space
+
+	// for each argument, parse it and write it to memory
+	for (int i = 0; i < numArgs; i++)
+	{
+		char argumentStr[LINE_SIZE];
+		readInstructionPart(line, argumentStr, &lineIndex);
+		memory[address] = convertToNumber(argumentStr, 0);
+		address++;
+		lineIndex++; // step over space
+	}
+
+	address++; // blank line
 }
 
 /*
@@ -406,7 +485,40 @@ void runMachineCode( )
 			runJumpCommand(fullCommand);
 			     // we dont go to the next command after a jump
 			     // instead we go to wherever the jump command states
-		} else if (part3 == PUT) // PUT command is in the last 3 bits
+		} else if (part3 == FUN)
+		{
+				 // the address of the function
+			int functionAddress = memory[address];
+			address++;
+				 // the address where the number of arguments are stored
+			int numArgsAddress = address;
+
+			memory[functionAddress - 1] = numArgsAddress;
+			address = functionAddress;
+
+			Memory  numArgs = memory[numArgsAddress];
+			Memory returnAddress = numArgsAddress + numArgs + 2;
+
+			push(regis.AX);
+			push(regis.BX);
+			push(regis.CX);
+			push(regis.DX);
+			push(regis.flag);
+			push(returnAddress);
+		} else if (part3 == RET)
+		{
+				 // return value
+			address = pop();
+			memory[address - 1] = regis.AX; // return value
+
+				 // restore values
+			regis.flag = pop();
+			regis.DX = pop();
+			regis.CX = pop();
+			regis.BX = pop();
+			regis.AX = pop();
+		}
+		else if (part3 == PUT) // PUT command is in the last 3 bits
 		{
 			printf("		REG AX: %d\n", regis.AX);
 		} else if (part3 == GET)
@@ -423,6 +535,31 @@ void runMachineCode( )
 		address ++; // next command
 	}
 }
+
+/*
+ * Pushes a value onto the stack and decrements the stack pointer
+ *
+ * Arguments:
+ *  - value: the value to push onto the stack
+ *
+ * Return: void
+ */
+void push(Memory value)
+{
+	memory[stackPointer--] = value;
+}
+
+/*
+ * pops a value off of the stack and increments the stack pointer
+ *
+ * Parameters: none
+ * Return: the value popped from the stack
+ */
+Memory pop()
+{
+	return memory[++stackPointer];
+}
+
 
 /*
  * Runs any jump command from the machine code
@@ -501,6 +638,12 @@ Memory getValue(int operand)
 		case CONSTANT:
 			address++;
 			return memory[address - 1];
+		case BXADDR:
+			return memory[regis.BX];
+		case BXPLUS:
+			address++;
+			Memory offset = memory[address - 1];
+			return memory[regis.BX + offset];
 		default: // nonexistent register
 			printf("Unknown register: %d at address %d", reg, address);
 			system("pause");
@@ -537,6 +680,14 @@ void putValue(int reg, Memory value)
 			address++; // step over the memory address to store at
 			Memory ptr = memory[address - 1]; // a pointer to where to store value
 			memory[ptr] = value;
+			break;
+		case BXADDR:
+			memory[regis.BX] = value;
+			break;
+		case BXPLUS:
+			address++; // step over the offset
+			Memory offset = memory[address - 1];
+			memory[regis.BX + offset] = value;
 			break;
 		default: // if the machine code tells it to put it into a non-existent register
 			printf("Error, register %d not recognized address %d", reg, address);
@@ -670,6 +821,16 @@ int whichOpperand( char operand[LINE_SIZE] )
 		return CONSTANT;
 	} else if (letter == '[')
 	{
+		if (operand[1] == 'b') // bx or bxplus
+		{
+			if (operand[3] == '+')
+			{ // BXPLUS
+				return BXPLUS;
+			}
+				 // otherwise it is BXADDR
+			return BXADDR;
+		}
+
 		return ADDRESS;
 	}
 	return -1;  //something went wrong if -1 is returned
@@ -728,9 +889,5 @@ void changeToLowerCase( char line[ ] )
 }
 
 /* Problems:
-> Part 6: I had some trouble converting and running JMP but I figured it out, I had various bugs
-I found a bug in my whichOperand function that made it unable to handle negative numbers
-
-I also had the weird bug with long comments breaking convertToMachine code but I figured that one out
-and set LINE_SIZE to 100 after talking to you
+> Part 8 - None
 */
