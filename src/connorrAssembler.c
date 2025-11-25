@@ -14,7 +14,7 @@
 
 // part7CR.asm sums up 10 numbers with a loop
 // part7FibCR.asm calculates the inputted amount of Fibonacci numbers
-char ASM_FILE_NAME[ ] = "part8TestCR.asm";
+char ASM_FILE_NAME[ ] = "labelsTestCR.asm";
 
 #define MAX 150			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output
@@ -70,11 +70,12 @@ typedef short int Memory;  // sets the type of memory to short int
 Memory memory[MAX] = { 0 };   // global variable the memory of the virtual machine
 Memory address;     // global variable the current address in the virtual machine
 Memory stackPointer = MAX - 1;
+Memory labelTable[26];
 
 //function prototypes
 void runMachineCode( );	// Executes the machine code
 void splitCommand( char line[ ], char instruction[ ], char operand1[ ], char operand2[ ] ); // splits a command into its parts
-void convertToMachineCode( FILE *fin );	// Converts a single line of ASM to machine code
+void convertToMachineCode( FILE *fin, int pass );	// Converts a single line of ASM to machine code
 void assembler( );			// Converts the entire ASM file and stores it in memory
 void printMemoryDump( );	// Prints memory with commands represented as integers
 
@@ -120,6 +121,11 @@ return value: none
 -----------------------------------------------------------*/
 void assembler( )
 {
+		 // initialize label table with -1 for not defined
+	for (int i = 0; i < 26; i++) {
+		labelTable[i] = -1;
+	}
+
 	address = 0;
 	FILE* fin;		// File pointer for reading in the assembly code.
 	     //recommend changing so you can type in file name
@@ -130,9 +136,19 @@ void assembler( )
 		system( "pause" );
 		exit( 1 );
 	}
+
+	// pass 0
 	for ( int i = 0; i < MAX && !feof( fin ); i++ )
 	{
-		convertToMachineCode( fin );
+		convertToMachineCode( fin, 0);
+	}
+
+	rewind(fin); // reset file pointer
+	address = 0; // reset address
+	// pass 1
+	for ( int i = 0; i < MAX && !feof( fin ); i++ )
+	{
+		convertToMachineCode( fin, 1);
 	}
 }
 
@@ -140,10 +156,11 @@ void assembler( )
 Converts a single line of ASM to machine code
 
 fin - file pointer to read from and converts it to machine code line by line writing to memory.
+pass - pass 0 fills labelTable but doesn't write to memory, pass 1 converts it to machine code and moves it into memory
 
 Return Value - void
 ---------------------------------------------------------------------*/
-void convertToMachineCode( FILE *fin )
+void convertToMachineCode( FILE *fin, int pass )
 {
 	char line[LINE_SIZE];		// full command
 	char part1[LINE_SIZE];	// determines which command
@@ -153,16 +170,34 @@ void convertToMachineCode( FILE *fin )
 
 	fgets( line, LINE_SIZE, fin );		// Takes one line from the asm file
 
+	printf("Processing:\n%s\n", line, line[1]);
+
+	changeToLowerCase( line );
+
+	if (line[1] == '\0' && isalpha(line[0])) // one character line means a label
+	{
+		if (pass == 0) {
+			char labelName = line[0];
+			// a-z are contiguous in ascii, subtracting the offset of a gives 0-25 for
+			// each letter, use it as an index into labelTable
+			int labelIndex = labelName - 'a';
+			labelTable[labelIndex] = address;
+
+			address++;
+			return;
+		} else { // pass == 1
+				 // we don't do anything with labels in the second pass
+			address++;
+			return;
+		}
+	}
+
 	if (line[0] == ';')
 	{
 		     // If we have a comment, don't look at the rest of the line
 		     // or change anything
 		return;
 	}
-
-	printf("Processing:\n%s\n", line);
-
-	changeToLowerCase( line );
 	
 	splitCommand( line, part1, part2, part3 );
 
@@ -261,28 +296,37 @@ void convertToMachineCode( FILE *fin )
 		address++;
 	}
 
+	if (pass == 0) {
+		memory[address] = 0; // erase whatever was here if this is the first pass
+	}
+
 	if (requires_16_bit_field)
 	{ // we need to record the 16 bits after this command
 			// convert part3 to a number and store it in the next memory slot
-		memory[address] = (Memory) convertToNumber(part3, 0);
+		if (pass == 1) { // we only write to memory if it is the second pass
+			memory[address] = (Memory) convertToNumber(part3, 0);
+		}
 		address ++;
 	}
 
 	if (operand2 == BXPLUS)
 	{
-			 // we need a field for bxplus
-		char plusValue[LINE_SIZE]; // the string containing the plus value
-		int part3Index = 4; // index in part3 while copying, start right after the +
-		int plusValueIndex = 0; // index in plusValue while copying
-			 // copy into plusValue until we hit a ']', starting after the +
-		while (part3[part3Index] != ']')
-		{
-			plusValue[plusValueIndex] = part3[part3Index];
-			part3Index++;
-			plusValueIndex++;
+			 // we only need to write a value if we are in the second pass
+		if (pass == 1) {
+			// we need a field for bxplus
+			char plusValue[LINE_SIZE]; // the string containing the plus value
+			int part3Index = 4; // index in part3 while copying, start right after the +
+			int plusValueIndex = 0; // index in plusValue while copying
+			// copy into plusValue until we hit a ']', starting after the +
+			while (part3[part3Index] != ']')
+			{
+				plusValue[plusValueIndex] = part3[part3Index];
+				part3Index++;
+				plusValueIndex++;
+			}
+			plusValue[plusValueIndex] = '\0'; // terminate string
+			memory[address] = (Memory) convertToNumber(plusValue, 0);
 		}
-		plusValue[plusValueIndex] = '\0'; // terminate string
-		memory[address] = (Memory) convertToNumber(plusValue, 0);
 		address++;
 	}
 
@@ -753,7 +797,16 @@ void printMemoryDump( )
 	printf( "CX:%d\t", regis.CX );
 	printf( "DX:%d\n\n", regis.DX );
 	printf( "Address: %d\n", address );
-	printf( "Flag: %d\n\n", regis.flag );
+	printf( "Flag: %d\n", regis.flag );
+	printf("===Labels Table===\n");
+
+	for (int i = 0; i < 26; i++) {
+		printf("%5c", 'A' + i);
+	}
+	printf("\n");
+	for (int i = 0; i < 26; i++) {
+		printf("%5d", labelTable[i]);
+	}
 }
 
 
@@ -821,7 +874,7 @@ int whichOpperand( char operand[LINE_SIZE] )
 		return CONSTANT;
 	} else if (letter == '[')
 	{
-		if (operand[1] == 'b') // bx or bxplus
+		if (operand[1] == 'b' && operand[2] == 'x') // bx or bxplus
 		{
 			if (operand[3] == '+')
 			{ // BXPLUS
@@ -852,6 +905,13 @@ int convertToNumber( char line[ ], int start )
 	{
 		start++;
 	}
+
+		 // this is a label
+	if (isalpha(line[start])) {
+		int index = line[start] = 'a'; // index in labelTable
+		return labelTable[index];
+	}
+
 	if ( line[ start ] == '-' )
 	{
 		start++;

@@ -1,0 +1,8 @@
+MOV BX 5
+MOV [A] BX
+MOV AX [A]
+PUT
+halt
+
+
+A
