@@ -1,5 +1,5 @@
 MOV BX 15
 MOV [14] BX
-MOV AX [BX+-1]
+MOV DX [BX+-1]
 PUT
 halt

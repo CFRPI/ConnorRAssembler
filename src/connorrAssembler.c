@@ -197,13 +197,9 @@ void convertToMachineCode( FILE *fin, int pass )
 				oldLineIndex++;
 			}
 
-			printf("===COPY\n");
-
 			strcpy(line, newLine);
 		}
 	}
-
-	printf("===line after splice: %s\n", line);
 
 	if (line[0] == ';')
 	{
@@ -941,7 +937,14 @@ int convertToNumber( char line[ ], int start )
 		 // this is a label
 	if (isalpha(line[start])) {
 		int index = line[start] - 'a'; // index in labelTable
-		return labelTable[index];
+		Memory value = labelTable[index];
+
+		if (value == -1) {
+				 // for my sanity
+			printf("=====Label %c not found!=====", line[start]);
+		}
+
+		return value;
 	}
 
 	if ( line[ start ] == '-' )
