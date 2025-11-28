@@ -14,9 +14,13 @@
 ; M = general variable 3
 ; N = general variable 4
 ; P = general variable 5
+; Fill array
 FUN [25] 1 [A]
+; Print array
 FUN [55] 1 [A]
+; Sort array
 FUN [85] 1 [A]
+; Print array
 FUN [55] 1 [A]
 halt
 

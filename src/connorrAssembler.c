@@ -14,7 +14,7 @@
 
 // part7CR.asm sums up 10 numbers with a loop
 // part7FibCR.asm calculates the inputted amount of Fibonacci numbers
-char ASM_FILE_NAME[ ] = "part10CR.asm";
+char ASM_FILE_NAME[ ] = "part11CR.asm";
 
 #define MAX 500			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output
@@ -576,6 +576,7 @@ void runMachineCode( )
 			push(regis.DX);
 			push(regis.flag);
 			push(returnAddress);
+
 		} else if (part3 == RET)
 		{
 				 // return value
@@ -761,6 +762,7 @@ void putValue(int reg, Memory value)
 			memory[regis.BX + offset] = value;
 			break;
 		default: // if the machine code tells it to put it into a non-existent register
+			printMemoryDump();
 			printf("Error, register %d not recognized address %d", reg, address);
 			system("pause");
 			exit(1);
