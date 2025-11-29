@@ -7,6 +7,7 @@
 ; F = check for null root in insert
 ; G = used for calling functions with runtime parameters
 ; H = used for calling functions with runtime parameters
+; I = variable used to pass numbers to insert element
 ;
 ; A node struct has the following structure
 ; Node {
@@ -15,24 +16,21 @@
 ; right
 ; }
 ; I will be using -1 as a null pointer
-FUN [40] 2 [-1] 10
-MOV BX [5]
+MOV DX 10
+MOV [I] DX
+FUN [50] 2 [-1] [I]
+MOV BX [9]
 MOV [R] BX
-FUN [40] 2 [R] 5
-FUN [40] 2 [R] 2
+MOV DX 5
+MOV [I] DX
+FUN [50] 2 [R] [I]
+MOV DX 2
+MOV [I] DX
+FUN [50] 2 [R] [I]
+MOV DX 7
+MOV [I] DX
+FUN [50] 2 [R] [I]
 halt
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -40,8 +38,9 @@ halt
 
 ; inserts an element into a tree and returns the address
 ; of the inserted element
-MOV BX [39]
-MOV AX [BX+2]
+MOV BX [49]
+MOV BX [BX+2]
+MOV AX [BX]
 MOV BX [A]
 ; write the value
 MOV [BX] AX
@@ -53,7 +52,7 @@ MOV [BX+2] DX
 MOV CX BX
 ; get the root
 ; BX will now contain the address of the address of the root
-MOV BX [39]
+MOV BX [49]
 MOV BX [BX+1]
 ; if the root is null, skip inserting
 CMP BX -1
@@ -82,7 +81,7 @@ MOV DX [BX]
 MOV AX DX
 MOV [H] DX
 ; insert(root.left, this.value)
-FUN [40] 2 [G] [H]
+FUN [50] 2 [G] [H]
 ; we did not use the struct we created so we decrement [A] to reuse this memory
 MOV DX [A]
 SUB DX 3
@@ -90,11 +89,11 @@ MOV [A] DX
 JMP [B]
 ; root.left = this
 D MOV [BX+1] CX
-B CMP DX [BX+2]
+B CMP AX [BX]
 JBE [C]
 ; this.value > root.value
 MOV DX -1
-CMP DX [BX+1]
+CMP DX [BX+2]
 JE [E]
 ; store root.right in [G]
 MOV AX [BX+2]
@@ -104,13 +103,13 @@ MOV BX CX
 MOV DX [BX]
 MOV [H] DX
 ; insert(root.right, this.value)
-FUN [40] 2 [G] [H]
+FUN [50] 2 [G] [H]
 ; we did not use the struct we created so we decrement [A] to reuse this memory
 MOV DX [A]
 SUB DX 3
 MOV [A] DX
 JMP [C]
-; root.left = this
+; root.right = this
 E MOV [BX+2] CX
 ; Update A to next available spot
 C MOV BX [A]
@@ -123,7 +122,8 @@ RET
 R
 G
 H
-A 200
+I
+A 300
 ; 141
 ; 143
 ; 145
