@@ -38,12 +38,13 @@ PUT
 halt
 
 
+; === Insert Element===
 ; inserts an element into a tree and returns the address
 ; of the inserted element
 ; Arguments
 ; - 1. the root of the binary tree to insert into, -1 means this will be the root node
 ; - 2. the address of the value to insert
-; Return - the value of the node that was just created
+; Return - the address of the node that was just created
 MOV BX [59]
 MOV BX [BX+2]
 MOV AX [BX]
@@ -93,7 +94,7 @@ MOV DX [A]
 SUB DX 3
 MOV [A] DX
 JMP [B]
-; root.left = this
+; root.left was null, set root.left = this
 D MOV [BX+1] CX
 B CMP AX [BX]
 JBE [C]
@@ -115,7 +116,7 @@ MOV DX [A]
 SUB DX 3
 MOV [A] DX
 JMP [C]
-; root.right = this
+; root.right was null so set root.right = this
 E MOV [BX+2] CX
 ; Update A to next available spot
 C MOV BX [A]
@@ -134,10 +135,10 @@ RET
 
 ; ===Search Tree===
 ; Searches for a value in a binary search tree
-; Args
+; Args:
 ; 1. address of value to search for
 ; 2. address of root of tree
-; Returns 1 if the value was found, 0 otherwise
+; Return - 1 if the value was found, 0 otherwise
 MOV BX [179]
 MOV BX [BX+1]
 ; DX = value to search for
