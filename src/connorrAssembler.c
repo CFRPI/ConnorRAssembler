@@ -14,7 +14,7 @@
 
 // part7CR.asm sums up 10 numbers with a loop
 // part7FibCR.asm calculates the inputted amount of Fibonacci numbers
-char ASM_FILE_NAME[ ] = "part11CR.asm";
+char ASM_FILE_NAME[ ] = "finalCR.asm";
 
 #define MAX 500			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output

@@ -1,0 +1,67 @@
+MOV CX 18
+MOV [299] CX
+FUN [25] 2 [300] 20
+FUN [75] 1 [300]
+halt
+
+
+
+
+
+
+
+
+
+MOV BX [24]
+MOV CX [BX+2]
+CMP CX 0
+JBE [52]
+GET
+MOV DX AX
+GET
+ADD DX AX
+GET
+ADD DX AX
+MOV BX [24]
+MOV BX [BX+1]
+ADD BX DX
+MOV DX [BX]
+ADD DX 1
+MOV [BX] DX
+ADD CX -1
+JMP [29]
+RET
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+MOV BX [74]
+MOV BX [BX+1]
+ADD BX 3
+MOV CX 0
+CMP CX 15
+JA [95]
+MOV AX [BX]
+PUT
+ADD BX 1
+ADD CX 1
+JMP [83]
+RET

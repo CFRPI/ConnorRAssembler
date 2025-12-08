@@ -10,32 +10,43 @@
 ; I always pass by reference since both functions are recursive and need runtime arguments
 ;
 ; DX is the value to insert into the tree
-; insert 10, creates root node
-MOV DX 10
-MOV [I] DX
+; reates root node with value from get
+GET
+MOV [I] AX
 FUN [60] 2 [-1] [I]
-MOV BX [9]
+MOV BX [8]
+; move the address of the root node into [R]
 MOV [R] BX
-;insert 15
-MOV DX 15
-MOV [I] DX
+MOV DX 0
+; Insert 4 more nodes into tree
+P CMP DX 4
+JAE O
+GET
+MOV [I] AX
 FUN [60] 2 [R] [I]
-; insert 2
-MOV DX 2
-MOV [I] DX
-FUN [60] 2 [R] [I]
-; insert 7
-MOV DX 7
-MOV [I] DX
-FUN [60] 2 [R] [I]
-; DX is now the value to search for
-MOV DX 15
-MOV [I] DX
+ADD DX 1
+JMP P
+; Get a value to search for
+O GET
+MOV [I] AX
 FUN [180] 2 [I] [R]
-MOV AX [53]
+MOV AX [40]
 ; Prints 1 if the value is found in the tree, otherwise 0
 PUT
 halt
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ; === Insert Element===
