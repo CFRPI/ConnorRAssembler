@@ -8,6 +8,7 @@
 typedef short int Memory; // sets the type of memory to short int
 
 #define MAX_LABELS 200
+#define MAX_LABEL_SIZE 20
 
 #define MAX 500			// strlen of simulators memory can be changed
 #define COL 7			// number of columns for output
@@ -81,6 +82,5 @@ struct Registers {
 extern Memory memory[MAX]; // global variable the memory of the virtual machine
 extern Memory address; // global variable the current address in the virtual machine
 extern Memory stackPointer;
-extern Memory labelTable[26];
 
 #endif //ASSEMBLER_CONSTANTS_H

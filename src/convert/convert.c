@@ -8,6 +8,8 @@
 #include <string.h>
 #include "convert.h"
 
+#include "../map/map.h"
+
 /********************   convertToMachineCode   ***********************
 Converts a single line of ASM to machine code
 
@@ -26,35 +28,32 @@ void convertToMachineCode(FILE *fin, int pass) {
 
     fgets(line, LINE_SIZE, fin); // Takes one line from the asm file
 
-    printf("Processing:\n%s\n", line);
-
     changeToLowerCase(line);
 
     // one character then a space or end of line means label
-    if ((line[1] == ' ' || line[1] == '\n' || line[1] == '\0') && isalpha(line[0])) {
-        if (pass == 0) {
-            char labelName = line[0];
-            // a-z are contiguous in ascii, subtracting the offset of a gives 0-25 for
-            // each letter, use it as an index into labelTable
-            int labelIndex = labelName - 'a';
-            labelTable[labelIndex] = address;
+    if (line[0] == '_') {
+        int lineIndex = 0; // our current position in line
+        char *labelName = (char *)(malloc(sizeof(char) * MAX_LABEL_SIZE));
+        while (line[lineIndex] != '\0' && line[lineIndex] != '\n' && line[lineIndex] != ' ') {
+            labelName[lineIndex] = line[lineIndex];
+            lineIndex++;
         }
-        if (line[1] == '\n' || line[1] == '\0') {
-            // blank line after removing label
-            strcpy(line, "\n");
-        } else {
-            // replace the line removing the label;
-            char newLine[LINE_SIZE];
-            int newLineIndex = 0;
-            int oldLineIndex = 2; // start after the label
-            while (line[oldLineIndex] != '\0') {
-                newLine[newLineIndex] = line[oldLineIndex];
-                newLineIndex++;
-                oldLineIndex++;
-            }
+        labelName[lineIndex] = '\0';
 
-            strcpy(line, newLine);
+        if (pass == 0) {
+            insertLabel(labelName, address);
         }
+        // replace the line removing the label;
+        char newLine[LINE_SIZE];
+        int newLineIndex = 0;
+        int oldLineIndex = lineIndex + 1; // start after the label
+        while (line[oldLineIndex] != '\0') {
+            newLine[newLineIndex] = line[oldLineIndex];
+            newLineIndex++;
+            oldLineIndex++;
+        }
+
+        strcpy(line, newLine);
     }
 
     if (line[0] == ';') {
@@ -163,7 +162,7 @@ void convertToMachineCode(FILE *fin, int pass) {
         if (pass == 1) {
             // we need to record the 16 bits after this command
             // convert part3 to a number and store it in the next memory slot
-            memory[address] = (Memory) convertToNumber(part3, 0);
+            memory[address] = (Memory) convertToNumber(part2, 0);
         }
         address++;
     }
@@ -404,9 +403,17 @@ int convertToNumber(char line[], int start) {
     }
 
     // this is a label
-    if (isalpha(line[start])) {
-        int index = line[start] - 'a'; // index in labelTable
-        Memory value = labelTable[index];
+    if (line[start] == '_') {
+        char labelName[MAX_LABEL_SIZE];
+        int lineIndex = start; // current position in line for copying
+        int labelNameIndex = 0; // current position in labelName
+        while (line[lineIndex] !=']') {
+            labelName[labelNameIndex] = line[lineIndex];
+            lineIndex++;
+            labelNameIndex++;
+        }
+        labelName[labelNameIndex] = '\0'; // terminate string
+        Memory value = getLabel(labelName);
 
         if (value == -1) {
             // for my sanity

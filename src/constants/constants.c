@@ -7,4 +7,3 @@
 Memory memory[MAX] = { 0 };
 Memory stackPointer = MAX - 1;
 Memory address = 0;
-Memory labelTable[26] = { -1 };

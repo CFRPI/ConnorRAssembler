@@ -8,6 +8,7 @@
 #include <stdlib.h>
 
 #include "../constants/constants.h"
+#include "../map/map.h"
 
 /********************   runMachineCode   ***********************
 Executes the machine code that is in memory, the virtual machine
@@ -24,6 +25,7 @@ void runMachineCode() {
     Memory fullCommand = memory[address]; // read the first command from memory
     address++;
     while (part1 != HALT) {
+        printf("running %d\n", fullCommand);
         // parts of the command
         part1 = (fullCommand & mask1) >> 8;
         part2 = (fullCommand & mask2) >> 4;
@@ -281,13 +283,9 @@ void printMemoryDump() {
     printf("Flag: %d\n", regis.flag);
     printf("===Labels Table===\n");
 
-    for (int i = 0; i < 26; i++) {
-        printf("%5c", 'A' + i);
-    }
+    printLabels();
+
     printf("\n");
-    for (int i = 0; i < 26; i++) {
-        printf("%5d", labelTable[i]);
-    }
     printf("\n");
 }
 

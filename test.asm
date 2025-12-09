@@ -1,8 +1,14 @@
-MOV AX 2
-MOV BX 1
-MOV [15] AX
-MOV [16] BX
-CMP AX 3
-JB 13
+MOV AX [_numA]
+ADD AX [_numB]
+CMO AX 10
+JA [_ifcase]
+JBE [_done]
+PUT
+_ifcase MOV AX 2
 put
-HALT
+_done halt
+
+
+
+_numA 50
+_numB 0

@@ -48,11 +48,6 @@ parameters: none
 return value: none
 -----------------------------------------------------------*/
 void assembler() {
-    // initialize label table with -1 for not defined
-    for (int i = 0; i < 26; i++) {
-        labelTable[i] = -1;
-    }
-
     address = 0;
     FILE *fin; // File pointer for reading in the assembly code.
     //recommend changing so you can type in file name
