@@ -47,7 +47,9 @@ PUT
 PUT
 ; test jmp
 ; if jmp works, we should jump to another put at memory 99 then halt at 100
-MOV AX 7
+MOV AX 1024
 MOV [99] AX
 JMP 99
+MOV AX 7
+PUT
 halt

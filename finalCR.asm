@@ -9,7 +9,7 @@ ADD BX CX
 MOV [BX] DX
 ADD CX 1
 JMP [8]
-FUN [35] 2 [300] 3
+FUN [35] 2 [300] 20
 FUN [75] 1 [300]
 halt
 

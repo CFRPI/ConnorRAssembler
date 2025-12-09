@@ -1,0 +1,8 @@
+MOV AX 2
+MOV BX 1
+MOV [15] AX
+MOV [16] BX
+CMP AX 3
+JB 13
+put
+HALT

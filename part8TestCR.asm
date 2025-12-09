@@ -10,6 +10,6 @@ MOV AX [BX+1]
 PUT
 MOV DX 20
 CMP [BX] DX
-JNE 17
+JE 17
 PUT
 halt
