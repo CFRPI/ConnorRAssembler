@@ -14,7 +14,7 @@ void convertJumpToMachineCode(char *part1, char *part2, char *part3); // convert
 void convertFunctionToMachineCode(char line[LINE_SIZE]); // converts function calls to machine code
 void changeToLowerCase(char line[]); // Changes each character to lower case
 int whichOpperand(char operand[]); // Returns the number of the letter register
-int convertToNumber(char line[], int start); // converts a sub-string to an int
+Memory convertToNumber(char line[], int start); // converts a sub-string to an int
 void handleBXPlus(char part3[LINE_SIZE]); // adds a bxplus field to machine code
 
 #endif //ASSEMBLER_CONVERT_H

@@ -13,6 +13,7 @@
 #include <string.h>
 #include "convert/convert.h"
 #include "constants/constants.h"
+#include "map/map.h"
 #include "run/run.h"
 
 // part7CR.asm sums up 10 numbers with a loop
@@ -23,10 +24,14 @@ char ASM_FILE_NAME[] = "test.asm";
 void assembler(); // Converts the entire ASM file and stores it in memory
 
 int main() {
+    stackPointer = MAX - 1;
+    address = 0;
+
     assembler();
     printf("=================================================\n");
     printf("Memory after program is converted to machine code\n");
     printf("=================================================\n");
+         // allocate memory for registers
     printMemoryDump();
     runMachineCode();
 
@@ -84,7 +89,3 @@ void changeToLowerCase(char line[]) {
         index++;
     }
 }
-
-/* Problems:
-> Part 8 - None
-*/

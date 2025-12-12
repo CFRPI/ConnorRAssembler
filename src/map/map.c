@@ -5,6 +5,7 @@
 #include "map.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 int size = 0;
@@ -41,7 +42,9 @@ Memory getLabel(char key[MAX_LABEL_SIZE]) {
         return labelsValues[index];
     }
 
-    return -1;
+    Memory noResult;
+    noResult.integer = -1;
+    return noResult;
 }
 
 void printLabels() {

@@ -22,9 +22,9 @@ void convertToMachineCode(FILE *fin, int pass) {
     char part1[LINE_SIZE]; // determines which command
     char part2[LINE_SIZE] = ""; // the first operand, may be empty
     char part3[LINE_SIZE] = ""; // the second operand, may be empty
-    Memory machineCode = 0; // One line of converted asm code from the file
-    Memory operand1 = 0;
-    Memory operand2 = 0;
+    Memory machineCode = { 0 }; // One line of converted asm code from the file
+    Memory operand1 = { 0 };
+    Memory operand2 = { 0 };
 
     fgets(line, LINE_SIZE, fin); // Takes one line from the asm file
 
@@ -33,16 +33,25 @@ void convertToMachineCode(FILE *fin, int pass) {
     // one character then a space or end of line means label
     if (line[0] == '_') {
         int lineIndex = 0; // our current position in line
-        char *labelName = (char *)(malloc(sizeof(char) * MAX_LABEL_SIZE));
-        while (line[lineIndex] != '\0' && line[lineIndex] != '\n' && line[lineIndex] != ' ') {
+        char labelName[MAX_LABEL_SIZE];
+        while (line[lineIndex] != '\0' && line[lineIndex] != '\n' && line[lineIndex] != ' ' && line[lineIndex] != ':') {
             labelName[lineIndex] = line[lineIndex];
             lineIndex++;
         }
         labelName[lineIndex] = '\0';
 
         if (pass == 0) {
-            insertLabel(labelName, address);
+            Memory label;
+            label.integer = address;
+            insertLabel(labelName, label);
         }
+
+        if (line[lineIndex] ==  ':') {
+                 // a : means we should stop parsing and not increment address
+                 // the program will continue on the next line
+            return;
+        }
+
         // replace the line removing the label;
         char newLine[LINE_SIZE];
         int newLineIndex = 0;
@@ -70,120 +79,158 @@ void convertToMachineCode(FILE *fin, int pass) {
     if (part1[0] == 'h') //halt
     {
         // bitshift it into higher 8 bits
-        memory[address] = HALT << 8;
+        memory[address].integer = HALT << 8;
         address++;
     }
-    if (part1[0] == 'f') {
+    if (strcmp(part1, "fun") == 0) {
         convertFunctionToMachineCode(line);
-    } else if (part1[0] == 'm') //move into a register or memory location
+    } else if (strcmp(part1, "mov") == 0) //move into a register or memory location
     {
         // 3 bits for op, 2 bits for reg1, 3 bits for reg2 or constant
         if (part2[0] == '[') {
             // movmem
-            machineCode = MOVMEM << 8;
+            machineCode.integer = MOVMEM << 8;
             char temp[LINE_SIZE]; // swap part 2 and 3
             strcpy(temp, part2);
             strcpy(part2, part3);
             strcpy(part3, temp);
         } else {
             // movreg
-            machineCode = MOVREG << 8;
+            machineCode.integer = MOVREG << 8;
         }
 
         // operand 1 is not the command but the first operand to follow it
-        operand1 = whichOpperand(part2); // the first operand of the line
-        operand2 = whichOpperand(part3); // the second operand of the line
+        operand1.integer = whichOpperand(part2); // the first operand of the line
+        operand2.integer = whichOpperand(part3); // the second operand of the line
 
-        machineCode = machineCode | operand1 << 4; // bit shifts 3 to the left and adds it to machine code
-        machineCode = machineCode | operand2;
+        machineCode.integer = machineCode.integer | operand1.integer << 4; // bit shifts 3 to the left and adds it to machine code
+        machineCode.integer = machineCode.integer | operand2.integer;
 
         memory[address] = machineCode;
         address++;
-    } else if (part1[0] == 'a') {
-        operand1 = whichOpperand(part2); // reg
-        operand2 = whichOpperand(part3); // reg or const
-        machineCode = ADDI << 8;
+    } else if (strcmp(part1, "addi") == 0) {
+        operand1.integer = whichOpperand(part2); // reg
+        operand2.integer = whichOpperand(part3); // reg or const
+        machineCode.integer = ADDI << 8;
 
-        machineCode |= operand1 << 4; // put in target register
-        machineCode |= operand2; // put in reg or const to add
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        machineCode.integer |= operand2.integer; // put in reg or const to add
         memory[address] = machineCode;
 
         address++; // increment address
-    } else if (part1[0] == 's') {
-        operand1 = whichOpperand(part2); // reg
-        operand2 = whichOpperand(part3); // reg or const
-        machineCode = SUBI << 8;
+    } else if (strcmp(part1, "addr") == 0) {
+        operand1.integer = whichOpperand(part2); // reg
+        operand2.integer = whichOpperand(part3); // reg or const
+        machineCode.integer = ADDR << 8;
 
-        machineCode |= operand1 << 4; // put in target register
-        machineCode |= operand2; // put in reg or const to add
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        machineCode.integer |= operand2.integer; // put in reg or const to add
         memory[address] = machineCode;
 
         address++; // increment address
-    } else if (part1[0] == 'p') // put
+    } else if (strcmp(part1, "subr") == 0) {
+        operand1.integer = whichOpperand(part2); // reg
+        operand2.integer = whichOpperand(part3); // reg or const
+        machineCode.integer = SUBR << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        machineCode.integer |= operand2.integer; // put in reg or const to add
+        memory[address] = machineCode;
+
+        address++; // increment address
+    } else if (strcmp(part1, "subi") == 0) {
+        operand1.integer = whichOpperand(part2); // reg
+        operand2.integer = whichOpperand(part3); // reg or const
+        machineCode.integer = SUBI << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        machineCode.integer |= operand2.integer; // put in reg or const to add
+        memory[address] = machineCode;
+
+        address++; // increment address
+    } else if (strcmp(part1, "put") == 0) // put
     {
-        memory[address] = PUT << 8;
+        memory[address].integer = PUT << 8;
         address++; // increment address
-    } else if (part1[0] == 'g') {
+    } else if (strcmp(part1, "putr") == 0) // put
+    {
+        memory[address].integer = PUTR << 8;
+        address++; // increment address
+    } else if (strcmp(part1, "get") == 0) {
         // get
-        memory[address] = GET << 8;
+        memory[address].integer = GET << 8;
         address++; // increment address
-    } else if (part1[0] == 'r') {
+    } else if (strcmp(part1, "ret") == 0) {
         // ret
-        memory[address] = RET << 8;
+        memory[address].integer = RET << 8;
         address++; // increment address
-    } else if (line[0] == '\n') {
-        memory[address] = 0;
-        address++;
-    } else if (line[0] == 'c') {
-        // cmp
-        operand1 = whichOpperand(part2); // must be a register
-        operand2 = whichOpperand(part3); // any type
-        machineCode = CMP << 8;
+    } else if (strcmp(part1, "reg") == 0) {
+        // ret
+        memory[address].integer = REG << 8;
+        address++; // increment address
+    } else if (strcmp(part1, "addrv") == 0) {
+        operand1.integer = whichOpperand(part2); // reg
+        operand2.integer = whichOpperand(part3); // reg or const
+        machineCode.integer = ADDRV << 8;
 
-        machineCode |= operand1 << 4; // move operand to the right spot
-        machineCode |= operand2;
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        machineCode.integer |= operand2.integer; // put in reg or const to add
+        memory[address] = machineCode;
+
+        address++;
+    } else if (line[0] == '\n') {
+        memory[address].integer = 0;
+        address++;
+    } else if (strcmp(part1, "cmp") == 0) {
+        // cmp
+        operand1.integer = whichOpperand(part2); // must be a register
+        operand2.integer = whichOpperand(part3); // any type
+        machineCode.integer = CMP << 8;
+
+        machineCode.integer |= operand1.integer << 4; // move operand to the right spot
+        machineCode.integer |= operand2.integer;
         memory[address] = machineCode;
 
         address++;
     } else if (line[0] == 'j') {
         convertJumpToMachineCode(part1, part2, part3);
-    } else if (isdigit(part1[0])) {
+    } else if (isdigit(part1[0]) || part1[0] == '-' || part1[0] == 'f') {
         // assume it is a number if it is not a command
-        memory[address] = convertToNumber(part1, 0);
+        memory[address] = convertToNumber(line, 0);
         address++;
     }
 
     if (pass == 0) {
-        memory[address] = 0; // erase whatever was here if this is the first pass
+        memory[address].integer = 0; // erase whatever was here if this is the first pass
     }
 
-    if (operand1 == ADDRESS || operand1 == CONSTANT) {
+    if (operand1.integer == ADDRESS || operand1.integer == CONSTANT) {
         // we only write to memory if it is the second pass
         if (pass == 1) {
             // we need to record the 16 bits after this command
             // convert part3 to a number and store it in the next memory slot
-            memory[address] = (Memory) convertToNumber(part2, 0);
+            memory[address] = convertToNumber(part2, 0);
         }
         address++;
     }
 
-    if (operand2 == ADDRESS || operand2 == CONSTANT) {
+    if (operand2.integer == ADDRESS || operand2.integer == CONSTANT) {
         if (pass == 1) {
             // we need to record the 16 bits after this command
             // convert part3 to a number and store it in the next memory slot
-            memory[address] = (Memory) convertToNumber(part3, 0);
+            memory[address] = convertToNumber(part3, 0);
         }
         address++;
     }
 
-    if (operand1 == BXPLUS) {
+    if (operand1.integer == BXPLUS) {
         if (pass == 1) {
             handleBXPlus(part2);
         }
         address++;
     }
 
-    if (operand2 == BXPLUS) {
+    if (operand2.integer == BXPLUS) {
         if (pass == 1) {
             handleBXPlus(part3);
         }
@@ -207,7 +254,7 @@ void handleBXPlus(char part[LINE_SIZE]) {
         plusValueIndex++;
     }
     plusValue[plusValueIndex] = '\0'; // terminate string
-    memory[address] = (Memory) convertToNumber(plusValue, 0);
+    memory[address] = convertToNumber(plusValue, 0);
 }
 
 void convertFunctionToMachineCode(char line[LINE_SIZE]) {
@@ -217,7 +264,7 @@ void convertFunctionToMachineCode(char line[LINE_SIZE]) {
     // this is just temporary and will be overwritten later, we don't really need it
     // we just need to increment line index
     readInstructionPart(line, addressStr, &lineIndex);
-    memory[address] = FUN << 8; // Write fun command to memory
+    memory[address].integer = FUN << 8; // Write fun command to memory
     address++;
 
     lineIndex++; // step over space
@@ -231,8 +278,8 @@ void convertFunctionToMachineCode(char line[LINE_SIZE]) {
 
     char numArgsStr[LINE_SIZE]; // a string containing the number of arguments
     readInstructionPart(line, numArgsStr, &lineIndex);
-    int numArgs = convertToNumber(numArgsStr, 0);
-    memory[address] = numArgs; // write to memory
+    int numArgs = convertToNumber(numArgsStr, 0).integer;
+    memory[address].integer = numArgs; // write to memory
     address++;
     lineIndex++; // step over space
 
@@ -263,27 +310,27 @@ void convertJumpToMachineCode(char *part1, char *part2, char *part3) {
     // we match the jump command and put the correct command into memory
     if (part1[1] == 'm' && part1[2] == 'p') {
         // JMP
-        memory[address] = JMP << 8;
+        memory[address].integer = JMP << 8;
     } else if (part1[1] == 'a') {
         // e differentiates JAE & JA
         if (part1[2] == 'e') {
-            memory[address] = JAE << 8;
+            memory[address].integer = JAE << 8;
         } else {
-            memory[address] = JA << 8;
+            memory[address].integer = JA << 8;
         }
     } else if (part1[1] == 'b') {
         // e differentiates JBE & JB
         if (part1[2] == 'e') {
-            memory[address] = JBE << 8;
+            memory[address].integer = JBE << 8;
         } else {
-            memory[address] = JB << 8;
+            memory[address].integer = JB << 8;
         }
     } else if (part1[1] == 'e') {
         // JE
-        memory[address] = JE << 8;
+        memory[address].integer = JE << 8;
     } else if (part1[1] == 'n' && part1[2] == 'e') {
         // JNE
-        memory[address] = JNE << 8;
+        memory[address].integer = JNE << 8;
     }
 
     // jump over the field so we don't overwrite it in the next line
@@ -369,7 +416,23 @@ int whichOpperand(char operand[LINE_SIZE]) {
         return CXREG;
     } else if (letter == 'd') {
         return DXREG;
-    } else if (isdigit(letter) || letter == '-') {
+    } else if (letter == 'e') {
+        return EXREG;
+    } else if (strcmp(operand, "fx") == 0) {
+        return FXREG;
+    } else if (letter == 'g') {
+        return GXREG;
+    } else if (letter == 'h') {
+        return HXREG;
+    } else if (letter == 'i') {
+        return IXREG;
+    } else if (letter == 'j') {
+        return JXREG;
+    } else if (letter == 'k') {
+        return KXREG;
+    } else if (letter == 'l') {
+        return LXREG;
+    } else if (isdigit(letter) || letter == '-' || letter == 'f') {
         return CONSTANT;
     } else if (letter == '[') {
         if (operand[1] == 'b' && operand[2] == 'x') // bx or bxplus
@@ -392,13 +455,18 @@ int whichOpperand(char operand[LINE_SIZE]) {
 /*  line - is the string of assembly code to convert
 /*  start - is the location where the line is being converted,
 /*--------------------------------------------------------------*/
-int convertToNumber(char line[], int start) {
-    int value; // is the integer value of the digits in the code
+Memory convertToNumber(char line[], int start) {
     char number[16]; //just the digits
     int negative = 0; //negative or positive number
+    int isFloat = 0;
 
     int i = 0;
     while (line[start] == '[' || line[start] == ' ') {
+        start++;
+    }
+
+    if (line[start] == 'f') {
+        isFloat = 1;
         start++;
     }
 
@@ -415,7 +483,7 @@ int convertToNumber(char line[], int start) {
         labelName[labelNameIndex] = '\0'; // terminate string
         Memory value = getLabel(labelName);
 
-        if (value == -1) {
+        if (value.integer == -1) {
             // for my sanity
             printf("=====Label %c not found!=====", line[start]);
         }
@@ -427,15 +495,50 @@ int convertToNumber(char line[], int start) {
         start++;
         negative = 1;
     }
+    while (i < 16 && isdigit(line[start]) || line[start] == '.') {
+        number[i] = line[start];
+        i++;
+        start++;
+    }
+    number[i] = '\0';
+
+    Memory result;
+    if (isFloat == 0) {
+        int value; // is the integer value of the digits in the code
+        value = atoi(number);
+
+        if (negative == 1) {
+            value = -value;
+        }
+        result.integer = value;
+    } else {
+        _Float16 value = (_Float16) atof(number);
+
+        if (negative == 1) {
+            value = -value;
+        }
+        result.real = value;
+    }
+
+    return result;
+} //end convertToNumber
+
+Memory convertFloatToNumber(char line[]) {
+    int start = 1;
+    int negative = 1;
+    char number[16];
+    if (line[start] == '-') {
+        start++;
+        negative = -1;
+    }
+    int i = start;
     while (i < 16 && isdigit(line[start])) {
         number[i] = line[start];
         i++;
         start++;
     }
     number[i] = '\0';
-    value = atoi(number);
-    if (negative == 1) {
-        value = -value;
-    }
-    return value;
-} //end convertToNumber
+    Memory res;
+    res.real = atof(number);
+    return res;
+}

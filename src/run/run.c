@@ -16,20 +16,19 @@ Parameters: none
 Return Value: none
 -----------------------------------------------------------*/
 void runMachineCode() {
-    Memory mask1 = 0xFF00; //111 00 000
-    Memory mask2 = 0x00F0; //000 11 000
-    Memory mask3 = 0x000F; //000 00 111
-    Memory part1, part2, part3; //command, operand1,
+    short int mask1 = 0xFF00; //111 00 000
+    short int mask2 = 0x00F0; //000 11 000
+    short int mask3 = 0x000F; //000 00 111
+    short int part1, part2, part3; //command, operand1,
 
     address = 0;
     Memory fullCommand = memory[address]; // read the first command from memory
     address++;
     while (part1 != HALT) {
-        printf("running %d\n", fullCommand);
         // parts of the command
-        part1 = (fullCommand & mask1) >> 8;
-        part2 = (fullCommand & mask2) >> 4;
-        part3 = fullCommand & mask3;
+        part1 = (fullCommand.integer & mask1) >> 8;
+        part2 = (fullCommand.integer & mask2) >> 4;
+        part3 = fullCommand.integer & mask3;
         if (part1 == MOVREG) {
             Memory value = getValue(part3);
             putValue(part2, value);
@@ -38,16 +37,28 @@ void runMachineCode() {
             putValue(part3, value);
         } else if (part1 == ADDI) {
             // the sum of the reg and reg/const to be moved into part2
-            Memory sum = getValue(part2) + getValue(part3); // sum of two operands
+            Memory sum;
+            sum.integer = getValue(part2).integer + getValue(part3).integer; // sum of two operands
             putValue(part2, sum); // write to target register
         } else if (part1 == SUBI) {
             // the sum of the reg and reg/const to be moved into part2
-            Memory sum = getValue(part2) - getValue(part3); // sum of two operands
+            Memory diff;
+            diff.integer = getValue(part2).integer - getValue(part3).integer; // sum of two operands
+            putValue(part2, diff); // write to target register
+        } else if (part1 == ADDR) {
+            // the sum of the reg and reg/const to be moved into part2
+            Memory sum;
+            sum.real = getValue(part2).real + getValue(part3).real; // sum of two operands
             putValue(part2, sum); // write to target register
+        } else if (part1 == SUBR) {
+            // the sum of the reg and reg/const to be moved into part2
+            Memory diff;
+            diff.real = getValue(part2).real - getValue(part3).real; // sum of two operands
+            putValue(part2, diff); // write to target register
         } else if (part1 == CMP) {
             // get the value at the register operand1 and the value operand2
-            int operand1 = getValue(part2); //
-            int operand2 = getValue(part3);
+            int operand1 = getValue(part2).integer; //
+            int operand2 = getValue(part3).integer;
 
             if (operand1 > operand2) {
                 regis.flag = 1;
@@ -63,42 +74,52 @@ void runMachineCode() {
             // instead we go to wherever the jump command states
         } else if (part1 == FUN) {
             // the address of the function
-            int functionAddress = memory[address];
+            int functionAddress = memory[address].integer;
             address++;
             // the address where the number of arguments are stored
-            int numArgsAddress = address;
+            Memory numArgsAddress;
+            numArgsAddress.integer = address;
 
             memory[functionAddress - 1] = numArgsAddress;
             address = functionAddress;
 
-            Memory numArgs = memory[numArgsAddress];
-            Memory returnAddress = numArgsAddress + numArgs + 2;
+            Memory numArgs = memory[numArgsAddress.integer];
+            Memory returnAddress;
+            returnAddress.integer = numArgsAddress.integer + numArgs.integer + 2;
 
             push(regis.AX);
             push(regis.BX);
             push(regis.CX);
             push(regis.DX);
-            push(regis.flag);
+            Memory flagMemoryValue;
+            flagMemoryValue.integer = regis.flag;
+            push(flagMemoryValue);
             push(returnAddress);
         } else if (part1 == RET) {
             // return value
-            address = pop();
+            address = pop().integer;
             memory[address - 1] = regis.AX; // return value
 
             // restore values
-            regis.flag = pop();
+            regis.flag = pop().integer;
             regis.DX = pop();
             regis.CX = pop();
             regis.BX = pop();
             regis.AX = pop();
         } else if (part1 == PUT) // PUT command is in the last 3 bits
         {
-            printf("		REG AX: %d\n", regis.AX);
+            printf("%d\n", regis.AX.integer);
+        } else if (part1 == PUTR) {
+            printf("%f\n", (float) regis.GX.real);
         } else if (part1 == GET) {
             int input = 0;
             printf("Enter an Integer > ");
             scanf("%d", &input);
-            regis.AX = input;
+            regis.AX.integer = input;
+        } else if (part1 == ADDRV) {
+            putValue(part2, memory[address]);
+        } else if (part1 == REG) {
+            printRegisters();
         }
 
         fullCommand = memory[address]; //the next command
@@ -141,7 +162,7 @@ Memory pop() {
  *
  * Return Value - void
  */
-void runJumpCommand(Memory command) {
+void runJumpCommand(short int command) {
     Memory targetAddress = memory[address];
     address++;
 
@@ -163,7 +184,7 @@ void runJumpCommand(Memory command) {
     }
 
     if (performJump == 1) {
-        address = targetAddress;
+        address = targetAddress.integer;
     }
 }
 
@@ -183,26 +204,42 @@ Memory getValue(int operand) {
     switch (operand) {
         // read the value of either the register or constant specified
         case AXREG:
-            return (Memory) regis.AX;
+            return regis.AX;
         case BXREG:
-            return (Memory) regis.BX;
+            return regis.BX;
         case CXREG:
-            return (Memory) regis.CX;
+            return regis.CX;
         case DXREG:
-            return (Memory) regis.DX;
+            return regis.DX;
+        case EXREG:
+            return regis.EX;
+        case FXREG:
+            return regis.FX;
+        case GXREG:
+            return regis.GX;
+        case HXREG:
+            return regis.HX;
+        case IXREG:
+            return regis.IX;
+        case JXREG:
+            return regis.JX;
+        case KXREG:
+            return regis.KX;
+        case LXREG:
+            return regis.LX;
         case ADDRESS:
             address++; // step over the value to retrieve
             Memory ptr = memory[address - 1]; // the pointer to the memory address to retrieve
-            return memory[ptr]; // get the memory value at ptr
+            return memory[ptr.integer]; // get the memory value at ptr
         case CONSTANT:
             address++;
             return memory[address - 1];
         case BXADDR:
-            return memory[regis.BX];
+            return memory[regis.BX.integer];
         case BXPLUS:
             address++;
-            Memory offset = memory[address - 1];
-            return memory[regis.BX + offset];
+            short int offset = memory[address - 1].integer;
+            return memory[regis.BX.integer + offset];
         default: // nonexistent register
             printf("Unknown register: %d at address %d", reg, address);
             system("pause");
@@ -211,7 +248,7 @@ Memory getValue(int operand) {
 }
 
 /*
- * Puts a value into a register
+ * Puts an integer into a register
  *
  * reg - the binary code of the register who's value we will set
  * value - the value to put into reg
@@ -233,18 +270,42 @@ void putValue(int reg, Memory value) {
         case DXREG:
             regis.DX = value;
             break;
+        case EXREG:
+            regis.EX = value;
+            break;
+        case FXREG:
+            regis.FX = value;
+            break;
+        case GXREG:
+            regis.GX = value;
+            break;
+        case HXREG:
+            regis.HX = value;
+            break;
+        case IXREG:
+            regis.IX = value;
+            break;
+        case JXREG:
+            regis.JX = value;
+            break;
+        case KXREG:
+            regis.KX = value;
+            break;
+        case LXREG:
+            regis.LX = value;
+            break;
         case ADDRESS:
             address++; // step over the memory address to store at
             Memory ptr = memory[address - 1]; // a pointer to where to store value
-            memory[ptr] = value;
+            memory[ptr.integer] = value;
             break;
         case BXADDR:
-            memory[regis.BX] = value;
+            memory[regis.BX.integer] = value;
             break;
         case BXPLUS:
             address++; // step over the offset
-            Memory offset = memory[address - 1];
-            memory[regis.BX + offset] = value;
+            short int offset = memory[address - 1].integer;
+            memory[regis.BX.integer + offset] = value;
             break;
         default: // if the machine code tells it to put it into a non-existent register
             printMemoryDump();
@@ -275,10 +336,18 @@ void printMemoryDump() {
         }
         printf("\n");
     }
-    printf("\nAX:%d\t", regis.AX);
-    printf("BX:%d\t", regis.BX);
-    printf("CX:%d\t", regis.CX);
-    printf("DX:%d\n\n", regis.DX);
+    printf("\nAX:%d\t", regis.AX.integer);
+    printf("BX:%d\t", regis.BX.integer);
+    printf("CX:%d\t", regis.CX.integer);
+    printf("DX:%d\t", regis.DX.integer);
+    printf("EX:%d\t", regis.EX.integer);
+    printf("FX:%d\t", regis.FX.integer);
+    printf("GX:%f\t", (float) regis.GX.real);
+    printf("HX:%f\t", (float) regis.HX.real);
+    printf("IX:%f\t", (float) regis.IX.real);
+    printf("JX:%f\t", (float) regis.JX.real);
+    printf("KX:%f\t", (float) regis.KX.real);
+    printf("LX:%f\t", (float) regis.LX.real);
     printf("Address: %d\n", address);
     printf("Flag: %d\n", regis.flag);
     printf("===Labels Table===\n");
@@ -287,6 +356,23 @@ void printMemoryDump() {
 
     printf("\n");
     printf("\n");
+}
+
+void printRegisters() {
+    printf("\nAX:%d\t", regis.AX.integer);
+    printf("BX:%d\t", regis.BX.integer);
+    printf("CX:%d\t", regis.CX.integer);
+    printf("DX:%d\t", regis.DX.integer);
+    printf("EX:%d\t", regis.EX.integer);
+    printf("FX:%d\t", regis.FX.integer);
+    printf("GX:%f\t", (float) regis.GX.real);
+    printf("HX:%f\t", (float) regis.HX.real);
+    printf("IX:%f\t", (float) regis.IX.real);
+    printf("JX:%f\t", (float) regis.JX.real);
+    printf("KX:%f\t", (float) regis.KX.real);
+    printf("LX:%f\t", (float) regis.LX.real);
+    printf("Address: %d\n", address);
+    printf("Flag: %d\n", regis.flag);
 }
 
 

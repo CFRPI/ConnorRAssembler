@@ -11,5 +11,6 @@ int getIndex(char key[MAX_LABEL_SIZE]);
 void insertLabel(char key[MAX_LABEL_SIZE], Memory value);
 Memory getLabel(char key[MAX_LABEL_SIZE]);
 void printLabels();
+void freeKeys();
 
 #endif //ASSEMBLER_MAP_H

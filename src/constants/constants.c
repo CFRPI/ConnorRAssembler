@@ -4,6 +4,6 @@
 
 #include "constants.h"
 
-Memory memory[MAX] = { 0 };
-Memory stackPointer = MAX - 1;
-Memory address = 0;
+Memory memory[MAX];
+short int stackPointer;
+short int address;

@@ -14,6 +14,7 @@ Memory getValue(int operand); // gets a value from a register or constant at add
 void push(Memory value); // pushes a value onto the stack
 Memory pop(); // pops a value off of the stack
 void runMachineCode(); // Executes the machine code
-void runJumpCommand(Memory command); // runs any jump command
+void runJumpCommand(short int command); // runs any jump command
+void printRegisters();
 
 #endif //ASSEMBLER_RUN_H

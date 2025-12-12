@@ -1,14 +1,24 @@
-MOV AX [_numA]
-ADD AX [_numB]
-CMO AX 10
-JA [_ifcase]
-JBE [_done]
-PUT
-_ifcase MOV AX 2
-put
-_done halt
+FUN [_fun] 1 5
+halt
+
+_fun:
+ADDRV BX [_fun]
+MOV BX [BX+-1]
+MOV BX [BX+1]
+MOV DX BX
+ADDRV BX [_array]
+MOV [BX+-1] 5
+MOV CX 0
+_funLoopStart:
+CMP CX DX
+JAE [_funDone]
+GET
+MOV [BX] AX
+ADDI BX 1
+ADDI CX 1
+JMP [_funLoopStart]
+_funDone:
+RET
 
 
-
-_numA 50
-_numB 0
+_array:

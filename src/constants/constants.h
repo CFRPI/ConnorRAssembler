@@ -5,7 +5,10 @@
 #ifndef ASSEMBLER_CONSTANTS_H
 #define ASSEMBLER_CONSTANTS_H
 
-typedef short int Memory; // sets the type of memory to short int
+typedef union{
+    short int integer;
+    _Float16 real;
+} Memory ; // sets the type of memory to short int
 
 #define MAX_LABELS 200
 #define MAX_LABEL_SIZE 20
@@ -15,14 +18,22 @@ typedef short int Memory; // sets the type of memory to short int
 #define LINE_SIZE 100	// For c-strings
 
 //OPERAND TYPES, REGISTERS AND OTHER
-#define AXREG 0
-#define BXREG 1
-#define CXREG 2
-#define DXREG 3
-#define CONSTANT 7
-#define ADDRESS 6
-#define BXADDR 4
-#define BXPLUS 5
+#define BXADDR 0
+#define BXPLUS 1
+#define ADDRESS 2
+#define CONSTANT 3
+#define AXREG 4
+#define BXREG 5
+#define CXREG 6
+#define DXREG 7
+#define EXREG 8
+#define FXREG 9
+#define GXREG 10
+#define HXREG 11
+#define IXREG 12
+#define JXREG 13
+#define KXREG 14
+#define LXREG 15
 
 //commands
 #define HALT 4
@@ -44,7 +55,7 @@ typedef short int Memory; // sets the type of memory to short int
 #define XOR 49
 #define SHIFTL 50
 #define SHIFTR 51
-#define REFV 52
+#define ADDRV 52
 #define PUT 6 // outputs ax
 #define PUTC 7
 #define PUTR 8
@@ -61,6 +72,7 @@ typedef short int Memory; // sets the type of memory to short int
 #define JMP 70
 #define FUN 3
 #define RET 2
+#define REG 9
 #define ANYJUMP 64 // matches any jump
 
 //boolean
@@ -71,16 +83,24 @@ enum operType { reg, mem, constant, arrayBx, arrayBxPlus, none }; //list of all 
 
 //Registers and flag add the stack pointer
 struct Registers {
-    int AX;
-    int BX;
-    int CX;
-    int DX;
+    Memory AX;
+    Memory BX;
+    Memory CX;
+    Memory DX;
+    Memory EX;
+    Memory FX;
+    Memory GX;
+    Memory HX;
+    Memory IX;
+    Memory JX;
+    Memory KX;
+    Memory LX;
     int flag;
 } regis;
 
 //GLOBAL VARIABLES
 extern Memory memory[MAX]; // global variable the memory of the virtual machine
-extern Memory address; // global variable the current address in the virtual machine
-extern Memory stackPointer;
+extern short int address; // global variable the current address in the virtual machine
+extern short int stackPointer;
 
 #endif //ASSEMBLER_CONSTANTS_H
