@@ -18,7 +18,7 @@
 
 // part7CR.asm sums up 10 numbers with a loop
 // part7FibCR.asm calculates the inputted amount of Fibonacci numbers
-char ASM_FILE_NAME[] = "test.asm";
+char ASM_FILE_NAME[] = "binaryTree.asm";
 
 //function prototypes
 void assembler(); // Converts the entire ASM file and stores it in memory

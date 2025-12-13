@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include "run.h"
 
+#include <math.h>
 #include <stdlib.h>
 
 #include "../constants/constants.h"
@@ -45,7 +46,22 @@ void runMachineCode() {
             Memory diff;
             diff.integer = getValue(part2).integer - getValue(part3).integer; // sum of two operands
             putValue(part2, diff); // write to target register
-        } else if (part1 == ADDR) {
+        } else if (part1 == MULI) {
+            // the sum of the reg and reg/const to be moved into part2
+            Memory prod;
+            prod.integer = getValue(part2).integer * getValue(part3).integer; // sum of two operands
+            putValue(part2, prod); // write to target register
+        } else if (part1 == DIVI) {
+            // the sum of the reg and reg/const to be moved into part2
+            Memory quot;
+            quot.integer = getValue(part2).integer / getValue(part3).integer; // sum of two operands
+            putValue(part2, quot); // write to target register
+        } else if (part1 == MODI) {
+            // the sum of the reg and reg/const to be moved into part2
+            Memory remainder;
+            remainder.integer = getValue(part2).integer % getValue(part3).integer; // sum of two operands
+            putValue(part2, remainder); // write to target register
+        }else if (part1 == ADDR) {
             // the sum of the reg and reg/const to be moved into part2
             Memory sum;
             sum.real = getValue(part2).real + getValue(part3).real; // sum of two operands
@@ -55,7 +71,22 @@ void runMachineCode() {
             Memory diff;
             diff.real = getValue(part2).real - getValue(part3).real; // sum of two operands
             putValue(part2, diff); // write to target register
-        } else if (part1 == CMP) {
+        } else if (part1 == MULR) {
+            // the sum of the reg and reg/const to be moved into part2
+            Memory prod;
+            prod.real = getValue(part2).real * getValue(part3).real; // sum of two operands
+            putValue(part2, prod); // write to target register
+        } else if (part1 == DIVR) {
+            // the sum of the reg and reg/const to be moved into part2
+            Memory quot;
+            quot.real = getValue(part2).real / getValue(part3).real; // sum of two operands
+            putValue(part2, quot); // write to target register
+        } else if (part1 == MODR) {
+            // the sum of the reg and reg/const to be moved into part2
+            Memory remainder;
+            remainder.real = fmod(getValue(part2).real, getValue(part3).real); // sum of two operands
+            putValue(part2, remainder); // write to target register
+        }  else if (part1 == CMP) {
             // get the value at the register operand1 and the value operand2
             int operand1 = getValue(part2).integer; //
             int operand2 = getValue(part3).integer;
@@ -108,9 +139,26 @@ void runMachineCode() {
             regis.AX = pop();
         } else if (part1 == PUT) // PUT command is in the last 3 bits
         {
-            printf("%d\n", regis.AX.integer);
+            Memory value = getValue(part2);
+            printf("%d", value.integer);
         } else if (part1 == PUTR) {
-            printf("%f\n", (float) regis.GX.real);
+            Memory value = getValue(part2);
+            printf("%f", (float) value.real);
+        } else if (part1 == PUTS) {
+            Memory value = getValue(part2);
+            short int memoryAddress = value.integer;
+            int stringAddress = 0;
+            char string[LINE_SIZE];
+            while (memory[memoryAddress].integer != 0) {
+                string[stringAddress] = (char) memory[memoryAddress].integer;
+                memoryAddress++;
+                stringAddress++;
+            }
+            string[stringAddress] = '\0';
+            printf("%s", string);
+        } else if (part1 == PUTC) {
+            Memory value = getValue(part2);
+            printf("%c", value.integer);
         } else if (part1 == GET) {
             int input = 0;
             printf("Enter an Integer > ");

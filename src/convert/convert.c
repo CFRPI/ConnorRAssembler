@@ -28,6 +28,43 @@ void convertToMachineCode(FILE *fin, int pass) {
 
     fgets(line, LINE_SIZE, fin); // Takes one line from the asm file
 
+    if (line[0] == ';') {
+        // If we have a comment, don't look at the rest of the line
+        // or change anything
+        return;
+    }
+
+    if (line[0] == '"') {
+        int lineIndex = 1;
+        while (line[lineIndex] != '"' && line[lineIndex] != '\0') {
+            Memory character;
+            int increment = 1;
+            if (line[lineIndex] == '\\') {
+                if (line[lineIndex + 1] == 'n') {
+                    character.integer = '\n';
+                } else if (line[lineIndex + 1] == '"' ) {
+                    character.integer = '"';
+                } else if (line[lineIndex + 1] == '\\') {
+                    character.integer = '\\';
+                } else {
+                    character.integer = 219; // blank block, not recognized
+                }
+                     // '\' must be followed with another character
+                increment = 2;
+            } else {
+                character.integer = line[lineIndex];
+            }
+            memory[address] = character;
+            address += 1;
+            lineIndex += increment;
+        }
+        Memory stringTerminator;
+        stringTerminator.integer = 0;
+        memory[address] = stringTerminator;
+        address++;
+    }
+
+         // now that we have handled any strings, we convert it to lower case for command parsing
     changeToLowerCase(line);
 
     // one character then a space or end of line means label
@@ -47,8 +84,8 @@ void convertToMachineCode(FILE *fin, int pass) {
         }
 
         if (line[lineIndex] ==  ':') {
-                 // a : means we should stop parsing and not increment address
-                 // the program will continue on the next line
+            // a : means we should stop parsing and not increment address
+            // the program will continue on the next line
             return;
         }
 
@@ -63,12 +100,6 @@ void convertToMachineCode(FILE *fin, int pass) {
         }
 
         strcpy(line, newLine);
-    }
-
-    if (line[0] == ';') {
-        // If we have a comment, don't look at the rest of the line
-        // or change anything
-        return;
     }
 
     splitCommand(line, part1, part2, part3);
@@ -138,6 +169,36 @@ void convertToMachineCode(FILE *fin, int pass) {
         memory[address] = machineCode;
 
         address++; // increment address
+    } else if (strcmp(part1, "mulr") == 0) {
+        operand1.integer = whichOpperand(part2); // reg
+        operand2.integer = whichOpperand(part3); // reg or const
+        machineCode.integer = MULR << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        machineCode.integer |= operand2.integer; // put in reg or const to add
+        memory[address] = machineCode;
+
+        address++; // increment address
+    } else if (strcmp(part1, "divr") == 0) {
+        operand1.integer = whichOpperand(part2); // reg
+        operand2.integer = whichOpperand(part3); // reg or const
+        machineCode.integer = DIVR << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        machineCode.integer |= operand2.integer; // put in reg or const to add
+        memory[address] = machineCode;
+
+        address++; // increment address
+    } else if (strcmp(part1, "modr") == 0) {
+        operand1.integer = whichOpperand(part2); // reg
+        operand2.integer = whichOpperand(part3); // reg or const
+        machineCode.integer = MODR << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        machineCode.integer |= operand2.integer; // put in reg or const to add
+        memory[address] = machineCode;
+
+        address++; // increment address
     } else if (strcmp(part1, "subi") == 0) {
         operand1.integer = whichOpperand(part2); // reg
         operand2.integer = whichOpperand(part3); // reg or const
@@ -148,13 +209,65 @@ void convertToMachineCode(FILE *fin, int pass) {
         memory[address] = machineCode;
 
         address++; // increment address
+    } else if (strcmp(part1, "muli") == 0) {
+        operand1.integer = whichOpperand(part2); // reg
+        operand2.integer = whichOpperand(part3); // reg or const
+        machineCode.integer = MULI << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        machineCode.integer |= operand2.integer; // put in reg or const to add
+        memory[address] = machineCode;
+
+        address++; // increment address
+    } else if (strcmp(part1, "divi") == 0) {
+        operand1.integer = whichOpperand(part2); // reg
+        operand2.integer = whichOpperand(part3); // reg or const
+        machineCode.integer = DIVI << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        machineCode.integer |= operand2.integer; // put in reg or const to add
+        memory[address] = machineCode;
+
+        address++; // increment address
+    } else if (strcmp(part1, "modi") == 0) {
+        operand1.integer = whichOpperand(part2); // reg
+        operand2.integer = whichOpperand(part3); // reg or const
+        machineCode.integer = MODI << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        machineCode.integer |= operand2.integer; // put in reg or const to add
+        memory[address] = machineCode;
+
+        address++; // increment address
     } else if (strcmp(part1, "put") == 0) // put
     {
-        memory[address].integer = PUT << 8;
+        operand1.integer = whichOpperand(part2);
+        machineCode.integer = PUT << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        memory[address] = machineCode;
         address++; // increment address
     } else if (strcmp(part1, "putr") == 0) // put
     {
-        memory[address].integer = PUTR << 8;
+        operand1.integer = whichOpperand(part2);
+        machineCode.integer = PUTR << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        memory[address] = machineCode;
+        address++; // increment address
+    } else if (strcmp(part1, "puts") == 0) {
+        operand1.integer = whichOpperand(part2);
+        machineCode.integer = PUTS << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        memory[address] = machineCode;
+        address++; // increment address
+    } else if (strcmp(part1, "putc") == 0) {
+        operand1.integer = whichOpperand(part2);
+        machineCode.integer = PUTC << 8;
+
+        machineCode.integer |= operand1.integer << 4; // put in target register
+        memory[address] = machineCode;
         address++; // increment address
     } else if (strcmp(part1, "get") == 0) {
         // get

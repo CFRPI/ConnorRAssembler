@@ -59,6 +59,7 @@ typedef union{
 #define PUT 6 // outputs ax
 #define PUTC 7
 #define PUTR 8
+#define PUTS 10
 #define MEM 0
 #define MEMH 1
 #define GET 5
